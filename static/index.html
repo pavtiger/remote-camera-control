@@ -13,6 +13,21 @@
             const imageElem = document.getElementById('image');
             imageElem.src = `data:image/jpeg;base64,${image}`;
         })
+
+        // Key events
+        document.addEventListener("keydown", onDocumentKeyDown, false);
+        function onDocumentKeyDown(event) {
+            console.log(event.which);
+            if (event.which === 37) {  // Left
+                socket.emit('left');
+            } else if (event.which === 39) {  // Right
+                socket.emit('right');
+            } else if (event.which === 38) {  // Up
+                socket.emit("up");
+            } else if (event.which === 40) {  // Down
+                socket.emit("down");
+            }
+        }
     </script>
 </body>
 </html>
