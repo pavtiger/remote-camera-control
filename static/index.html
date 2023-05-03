@@ -8,7 +8,7 @@
     <img id="image">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
     <script>
-        const socket = io.connect('http://192.168.1.52:9002');
+        const socket = io.connect('http://192.168.1.12:9002');
         socket.on('image', (image) => {
             const imageElem = document.getElementById('image');
             imageElem.src = `data:image/jpeg;base64,${image}`;
@@ -17,7 +17,6 @@
         // Key events
         document.addEventListener("keydown", onDocumentKeyDown, false);
         function onDocumentKeyDown(event) {
-            console.log(event.which);
             if (event.which === 37) {  // Left
                 socket.emit('left');
             } else if (event.which === 39) {  // Right
