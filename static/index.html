@@ -2,11 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Remote camera</title>
+    <link rel="stylesheet" href="static/main.css">
 </head>
 <body>
-    <img id="image">
+    <img id="image", style="height: 100%">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
+
     <script>
         const socket = io.connect('http://192.168.1.12:9002');
         socket.on('image', (image) => {
