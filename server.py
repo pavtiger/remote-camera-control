@@ -8,8 +8,7 @@ import asyncio
 from aiohttp import web
 import eventlet
 
-import RPi.GPIO as GPIO
-from gpiozero import AngularServo
+import pigpio
 from time import sleep
 
 from config import ip_address, port, cors_allowed_origins
@@ -25,21 +24,20 @@ sio.attach(app)
 
 # cv2 Video capture
 wCap = cv2.VideoCapture(0)
-encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 45]
 
 # Servo options
-pos = [7.5, 7.5]
-delta = [0.5, 0.5]
-servo = 17
-GPIO.setmode( GPIO.BCM )
-GPIO.setup( servo, GPIO.OUT )
+pos = [1500, 1500]
+STEP = [25, 25]
+delta = [0, 0]
+servo = [17, -1]
 
-# info on frequency and PWM formula at https://rpi.science.uoit.ca/lab/servo/
-pwm = GPIO.PWM( servo, 50 )
-pwm.start( pos[1] )
+pwm = pigpio.pi()
 
-# servo_hor = AngularServo(17, min_pulse_width=0.0006, max_pulse_width=0.0023)
-# servo_hor.angle = 0
+pwm.set_mode(servo[0], pigpio.OUTPUT)
+pwm.set_PWM_frequency(servo[0], 50)
+pwm.set_servo_pulsewidth(servo[0], 1500)
+
 
 # Static files server
 async def index(request):
@@ -52,28 +50,32 @@ app.router.add_get('/', index)
 
 
 @sio.on('up')
-async def up(sid):
-    print("up")
-    pos[0] = min(90, pos[0] + delta[0])
+async def up(sid, pressed):
+    if pressed:
+        delta[0] = 1
+    else:
+        delta[0] = 0
 
 @sio.on('down')
-async def down(sid):
-    print("down")
-    pos[0] = max(2.5, pos[0] - delta[0])
+async def down(sid, pressed):
+    if pressed:
+        delta[0] = -1
+    else:
+        delta[0] = 0
 
 @sio.on('left')
-async def left(sid):
-    print("left")
-    pos[1] = min(12.5, pos[1] + delta[1])
-    # servo_hor.angle = int(pos[1])
-    pwm.ChangeDutyCycle(pos[1])
+async def left(sid, pressed):
+    if pressed:
+        delta[1] = 1
+    else:
+        delta[1] = 0
 
 @sio.on('right')
-async def right(sid):
-    print("right")
-    pos[1] = max(2.5, pos[1] - delta[1])
-    # servo_hor.angle = int(pos[1])
-    pwm.ChangeDutyCycle(pos[1])
+async def right(sid, pressed):
+    if pressed:
+        delta[1] = -1
+    else:
+        delta[1] = 0
 
 
 async def send_images():
@@ -87,8 +89,19 @@ async def send_images():
         await sio.sleep(0.1)
 
 
+async def move_camera():
+    while True:
+        pos[1] = min(2500, max(500, pos[1] + delta[1] * STEP[1]))
+        # pos[0] = min(2500, max(500, pos[0] + delta[0] * STEP[0]))
+        
+        pwm.set_servo_pulsewidth(servo[0], pos[1])
+
+        await sio.sleep(0.1)
+
+
 async def init_app():
     sio.start_background_task(send_images)
+    sio.start_background_task(move_camera)
     return app
 
 

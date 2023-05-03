@@ -18,13 +18,28 @@
         document.addEventListener("keydown", onDocumentKeyDown, false);
         function onDocumentKeyDown(event) {
             if (event.which === 37) {  // Left
-                socket.emit('left');
+                socket.emit('left', true);
             } else if (event.which === 39) {  // Right
-                socket.emit('right');
+                socket.emit('right', true);
             } else if (event.which === 38) {  // Up
-                socket.emit("up");
+                socket.emit("up", true);
             } else if (event.which === 40) {  // Down
-                socket.emit("down");
+                socket.emit("down", true);
+            }
+        }
+
+
+        // Key events
+        document.addEventListener("keyup", onDocumentKeyUp, false);
+        function onDocumentKeyUp(event) {
+            if (event.which === 37) {  // Left
+                socket.emit('left', false);
+            } else if (event.which === 39) {  // Right
+                socket.emit('right', false);
+            } else if (event.which === 38) {  // Up
+                socket.emit("up", false);
+            } else if (event.which === 40) {  // Down
+                socket.emit("down", false);
             }
         }
     </script>
