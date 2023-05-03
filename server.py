@@ -8,6 +8,7 @@ import asyncio
 from aiohttp import web
 import eventlet
 
+import RPi.GPIO as GPIO
 from gpiozero import AngularServo
 from time import sleep
 
@@ -27,10 +28,18 @@ wCap = cv2.VideoCapture(0)
 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
 
 # Servo options
-pos = [0, 0]
-delta = [10, 10]
-servo_hor = AngularServo(17, min_pulse_width=0.006, max_pulse_width=0.023)
-servo_hor.angle = 0
+pos = [7.5, 7.5]
+delta = [0.5, 0.5]
+servo = 17
+GPIO.setmode( GPIO.BCM )
+GPIO.setup( servo, GPIO.OUT )
+
+# info on frequency and PWM formula at https://rpi.science.uoit.ca/lab/servo/
+pwm = GPIO.PWM( servo, 50 )
+pwm.start( pos[1] )
+
+# servo_hor = AngularServo(17, min_pulse_width=0.0006, max_pulse_width=0.0023)
+# servo_hor.angle = 0
 
 # Static files server
 async def index(request):
@@ -50,19 +59,21 @@ async def up(sid):
 @sio.on('down')
 async def down(sid):
     print("down")
-    pos[0] = max(-90, pos[0] - delta[0])
+    pos[0] = max(2.5, pos[0] - delta[0])
 
 @sio.on('left')
 async def left(sid):
     print("left")
-    pos[1] = min(90, pos[1] + delta[1])
-    servo_hor.angle = int(pos[1])
+    pos[1] = min(12.5, pos[1] + delta[1])
+    # servo_hor.angle = int(pos[1])
+    pwm.ChangeDutyCycle(pos[1])
 
 @sio.on('right')
 async def right(sid):
     print("right")
-    pos[1] = max(-90, delta[1])
-    servo_hor.angle = int(pos[1])
+    pos[1] = max(2.5, pos[1] - delta[1])
+    # servo_hor.angle = int(pos[1])
+    pwm.ChangeDutyCycle(pos[1])
 
 
 async def send_images():
