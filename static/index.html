@@ -2,17 +2,48 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Remote camera</title>
+    <link rel="stylesheet" href="static/main.css">
 </head>
 <body>
-    <img id="image">
+    <img id="image", style="height: 100%">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
+
     <script>
-        const socket = io.connect('http://192.168.1.52:9002');
+        const socket = io.connect('http://192.168.2.29:9002');
         socket.on('image', (image) => {
             const imageElem = document.getElementById('image');
             imageElem.src = `data:image/jpeg;base64,${image}`;
         })
+
+        // Key events
+        document.addEventListener("keydown", onDocumentKeyDown, false);
+        function onDocumentKeyDown(event) {
+            if (event.which === 37) {  // Left
+                socket.emit('left', true);
+            } else if (event.which === 39) {  // Right
+                socket.emit('right', true);
+            } else if (event.which === 38) {  // Up
+                socket.emit("up", true);
+            } else if (event.which === 40) {  // Down
+                socket.emit("down", true);
+            }
+        }
+
+
+        // Key events
+        document.addEventListener("keyup", onDocumentKeyUp, false);
+        function onDocumentKeyUp(event) {
+            if (event.which === 37) {  // Left
+                socket.emit('left', false);
+            } else if (event.which === 39) {  // Right
+                socket.emit('right', false);
+            } else if (event.which === 38) {  // Up
+                socket.emit("up", false);
+            } else if (event.which === 40) {  // Down
+                socket.emit("down", false);
+            }
+        }
     </script>
 </body>
 </html>
