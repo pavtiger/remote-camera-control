@@ -9,15 +9,14 @@ from aiohttp import web
 import eventlet
 
 import pigpio
-from time import sleep
 
-from config import ip_address, port, cors_allowed_origins
+from config import ip_address, port
 
 
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
 
 # Create a Socket.IO server
-sio = socketio.AsyncServer(async_mode='aiohttp', cors_allowed_origins=cors_allowed_origins,
+sio = socketio.AsyncServer(async_mode='aiohttp',
                                    maxHttpBufferSize=MAX_BUFFER_SIZE, async_handlers=True)
 app = web.Application()
 sio.attach(app)
@@ -27,16 +26,20 @@ wCap = cv2.VideoCapture(0)
 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 45]
 
 # Servo options
-pos = [1500, 1500]
+pos = [1000, 1500]
 STEP = [25, 25]
 delta = [0, 0]
-servo = [17, -1]
+servo_pins = [27, 17]
 
 pwm = pigpio.pi()
 
-pwm.set_mode(servo[0], pigpio.OUTPUT)
-pwm.set_PWM_frequency(servo[0], 50)
-pwm.set_servo_pulsewidth(servo[0], 1500)
+pwm.set_mode(servo_pins[0], pigpio.OUTPUT)
+pwm.set_PWM_frequency(servo_pins[0], 50)
+pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
+
+pwm.set_mode(servo_pins[1], pigpio.OUTPUT)
+pwm.set_PWM_frequency(servo_pins[1], 50)
+pwm.set_servo_pulsewidth(servo_pins[1], pos[1])
 
 
 # Static files server
@@ -52,14 +55,14 @@ app.router.add_get('/', index)
 @sio.on('up')
 async def up(sid, pressed):
     if pressed:
-        delta[0] = 1
+        delta[0] = -1
     else:
         delta[0] = 0
 
 @sio.on('down')
 async def down(sid, pressed):
     if pressed:
-        delta[0] = -1
+        delta[0] = 1
     else:
         delta[0] = 0
 
@@ -86,15 +89,16 @@ async def send_images():
         converted = base64.b64encode(image)
         await sio.emit('image', str(converted)[2:-1])
 
-        await sio.sleep(0.1)
+        await sio.sleep(0.05)
 
 
 async def move_camera():
     while True:
+        pos[0] = min(2500, max(500, pos[0] + delta[0] * STEP[0]))
         pos[1] = min(2500, max(500, pos[1] + delta[1] * STEP[1]))
-        # pos[0] = min(2500, max(500, pos[0] + delta[0] * STEP[0]))
-        
-        pwm.set_servo_pulsewidth(servo[0], pos[1])
+
+        pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
+        pwm.set_servo_pulsewidth(servo_pins[1], pos[1])
 
         await sio.sleep(0.1)
 
