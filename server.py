@@ -23,11 +23,11 @@ sio.attach(app)
 
 # cv2 Video capture
 wCap = cv2.VideoCapture(0)
-encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 45]
+encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
 
 # Servo options
 pos = [1000, 1500]
-STEP = [25, 25]
+STEP = [10, 10]
 delta = [0, 0]
 servo_pins = [27, 17]
 
@@ -100,7 +100,7 @@ async def move_camera():
         pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
         pwm.set_servo_pulsewidth(servo_pins[1], pos[1])
 
-        await sio.sleep(0.1)
+        await sio.sleep(0.05)
 
 
 async def init_app():

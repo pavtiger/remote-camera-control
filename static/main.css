@@ -1,5 +1,7 @@
 html,
 body {
-  overflow: auto;
+  margin: 0;
+  overflow: hidden;
   height: 100%;
+  background-color: #22272e;
 }
