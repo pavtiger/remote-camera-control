@@ -10,7 +10,7 @@ import eventlet
 
 import pigpio
 
-from config import ip_address, port
+from config import ip_address, port, servo_pins, starting_angles, camera_index
 
 
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
@@ -22,14 +22,14 @@ app = web.Application()
 sio.attach(app)
 
 # cv2 Video capture
-wCap = cv2.VideoCapture(0)
+wCap = cv2.VideoCapture(camera_index)
 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
 
 # Servo options
-pos = [1000, 1500]
-STEP = [10, 10]
-delta = [0, 0]
-servo_pins = [27, 17]
+# [vertical, horizontal]
+pos = starting_angles  # Current position of servos
+STEP = [10, 10]  # Step distance for each moment (constant)
+delta = [0, 0]  # Servo delta at each moment in time in range [-1, 1]
 
 pwm = pigpio.pi()
 
