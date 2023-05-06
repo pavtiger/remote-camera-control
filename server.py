@@ -55,30 +55,41 @@ app.router.add_get('/', index)
 @sio.on('up')
 async def up(sid, pressed):
     if pressed:
-        delta[0] = -1
+        delta[0] = -0.5
     else:
         delta[0] = 0
 
 @sio.on('down')
 async def down(sid, pressed):
     if pressed:
-        delta[0] = 1
+        delta[0] = 0.5
     else:
         delta[0] = 0
 
 @sio.on('left')
 async def left(sid, pressed):
     if pressed:
-        delta[1] = 1
+        delta[1] = -0.5
     else:
         delta[1] = 0
 
 @sio.on('right')
 async def right(sid, pressed):
     if pressed:
-        delta[1] = -1
+        delta[1] = 0.5
     else:
         delta[1] = 0
+
+
+@sio.on("move")
+async def move(sio, dx, dy):
+    delta[0] = dx
+    delta[1] = dy
+
+@sio.on("stop")
+async def stop(sio):
+    delta[0] = 0
+    delta[1] = 0
 
 
 async def send_images():
@@ -94,13 +105,13 @@ async def send_images():
 
 async def move_camera():
     while True:
-        pos[0] = min(2500, max(500, pos[0] + delta[0] * STEP[0]))
-        pos[1] = min(2500, max(500, pos[1] + delta[1] * STEP[1]))
+        pos[0] = min(2500, max(500, pos[0] + delta[0] * STEP[0]))  # Vertical
+        pos[1] = min(2500, max(500, pos[1] - delta[1] * STEP[1]))  # Horizontal
 
         pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
         pwm.set_servo_pulsewidth(servo_pins[1], pos[1])
 
-        await sio.sleep(0.05)
+        await sio.sleep(0.01)
 
 
 async def init_app():
