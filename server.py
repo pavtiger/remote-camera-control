@@ -1,5 +1,5 @@
 import cv2
-from time import sleep
+import time
 import base64
 import signal
 import subprocess
@@ -124,10 +124,16 @@ async def init_app():
 if __name__ == "__main__":
     eventlet.monkey_patch()
 
-    machine_ip = subprocess.check_output(f"ip -f inet addr show {interface} | awk '/inet / {{print $2}}'", shell=True).decode("utf-8")[:-1]
-    machine_ip = machine_ip.split('/')[0]
-    with open("static/ip.js", "w") as f:
-        f.write(f'var server_address = "http://{machine_ip}:{port}";')
+    while True:  # Repeat until network is connected
+        machine_ip = subprocess.check_output(f"ip -f inet addr show {interface} | awk '/inet / {{print $2}}'", shell=True).decode("utf-8")[:-1]
+        machine_ip = machine_ip.split('/')[0]
+
+        if machine_ip != "":
+            with open("static/ip.js", "w") as f:
+                f.write(f'var server_address = "http://{machine_ip}:{port}";')
+            break
+
+        time.sleep(3)
 
     web.run_app(init_app(), host=machine_ip, port=port)
     wCap.release()
