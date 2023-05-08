@@ -126,6 +126,8 @@ if __name__ == "__main__":
 
     machine_ip = subprocess.check_output(f"ip -f inet addr show {interface} | awk '/inet / {{print $2}}'", shell=True).decode("utf-8")[:-1]
     machine_ip = machine_ip.split('/')[0]
+    with open("static/ip.js", "w") as f:
+        f.write(f'var server_address = "http://{machine_ip}:{port}";')
 
     web.run_app(init_app(), host=machine_ip, port=port)
     wCap.release()

@@ -10,14 +10,14 @@
 <body>
     <img id="image", style="height: 100%">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
+    <script type="text/javascript" src="static/ip.js"></script> 
 
     <script>
         const max_move_dist = 300;
         let mouse_down = false;
         let mouse_click_pos = [], mouse_pos = [];
 
-
-        const socket = io.connect('http://192.168.2.29:9002');
+        const socket = io.connect(server_address);
         socket.on('image', (image) => {
             const imageElem = document.getElementById('image');
             imageElem.src = `data:image/jpeg;base64,${image}`;
