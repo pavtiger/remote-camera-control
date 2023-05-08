@@ -2,6 +2,7 @@ import cv2
 from time import sleep
 import base64
 import signal
+import subprocess
 
 import socketio
 import asyncio
@@ -10,7 +11,7 @@ import eventlet
 
 import pigpio
 
-from config import ip_address, port, servo_pins, starting_angles, camera_index
+from config import interface, port, servo_pins, starting_angles, camera_index
 
 
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
@@ -123,5 +124,8 @@ async def init_app():
 if __name__ == "__main__":
     eventlet.monkey_patch()
 
-    web.run_app(init_app(), host=ip_address, port=port)
+    machine_ip = subprocess.check_output(f"ip -f inet addr show {interface} | awk '/inet / {{print $2}}'", shell=True).decode("utf-8")[:-1]
+    machine_ip = machine_ip.split('/')[0]
+
+    web.run_app(init_app(), host=machine_ip, port=port)
     wCap.release()
