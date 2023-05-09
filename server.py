@@ -1,7 +1,8 @@
 import cv2
-from time import sleep
+import time
 import base64
 import signal
+import subprocess
 
 import socketio
 import asyncio
@@ -10,7 +11,7 @@ import eventlet
 
 import pigpio
 
-from config import ip_address, port, servo_pins, starting_angles, camera_index
+from config import interface, port, servo_pins, starting_angles, camera_index
 
 
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
@@ -55,30 +56,41 @@ app.router.add_get('/', index)
 @sio.on('up')
 async def up(sid, pressed):
     if pressed:
-        delta[0] = -1
+        delta[0] = -0.5
     else:
         delta[0] = 0
 
 @sio.on('down')
 async def down(sid, pressed):
     if pressed:
-        delta[0] = 1
+        delta[0] = 0.5
     else:
         delta[0] = 0
 
 @sio.on('left')
 async def left(sid, pressed):
     if pressed:
-        delta[1] = 1
+        delta[1] = -0.5
     else:
         delta[1] = 0
 
 @sio.on('right')
 async def right(sid, pressed):
     if pressed:
-        delta[1] = -1
+        delta[1] = 0.5
     else:
         delta[1] = 0
+
+
+@sio.on("move")
+async def move(sio, dx, dy):
+    delta[0] = dx
+    delta[1] = dy
+
+@sio.on("stop")
+async def stop(sio):
+    delta[0] = 0
+    delta[1] = 0
 
 
 async def send_images():
@@ -94,13 +106,13 @@ async def send_images():
 
 async def move_camera():
     while True:
-        pos[0] = min(2500, max(500, pos[0] + delta[0] * STEP[0]))
-        pos[1] = min(2500, max(500, pos[1] + delta[1] * STEP[1]))
+        pos[0] = min(2500, max(500, pos[0] + delta[0] * STEP[0]))  # Vertical
+        pos[1] = min(2500, max(500, pos[1] - delta[1] * STEP[1]))  # Horizontal
 
         pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
         pwm.set_servo_pulsewidth(servo_pins[1], pos[1])
 
-        await sio.sleep(0.05)
+        await sio.sleep(0.01)
 
 
 async def init_app():
@@ -112,5 +124,16 @@ async def init_app():
 if __name__ == "__main__":
     eventlet.monkey_patch()
 
-    web.run_app(init_app(), host=ip_address, port=port)
+    while True:  # Repeat until network is connected
+        machine_ip = subprocess.check_output(f"ip -f inet addr show {interface} | awk '/inet / {{print $2}}'", shell=True).decode("utf-8")[:-1]
+        machine_ip = machine_ip.split('/')[0]
+
+        if machine_ip != "":
+            with open("static/ip.js", "w") as f:
+                f.write(f'var server_address = "http://{machine_ip}:{port}";')
+            break
+
+        time.sleep(3)
+
+    web.run_app(init_app(), host=machine_ip, port=port)
     wCap.release()

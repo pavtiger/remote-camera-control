@@ -3,20 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <title>Remote camera</title>
+
     <link rel="stylesheet" href="static/main.css">
+    <script src="static/jquery-3.6.4.min.js"></script>
 </head>
 <body>
     <img id="image", style="height: 100%">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
+    <script type="text/javascript" src="static/ip.js"></script> 
 
     <script>
-        const socket = io.connect('http://192.168.2.29:9002');
+        const max_move_dist = 300;
+        let mouse_down = false;
+        let mouse_click_pos = [], mouse_pos = [];
+
+        const socket = io.connect(server_address);
         socket.on('image', (image) => {
             const imageElem = document.getElementById('image');
             imageElem.src = `data:image/jpeg;base64,${image}`;
         })
+        document.getElementById('image').ondragstart = function() { return false; };  // Disable image drag
 
-        // Key events
+        // Key down events
         document.addEventListener("keydown", onDocumentKeyDown, false);
         function onDocumentKeyDown(event) {
             if (event.which === 37) {  // Left
@@ -31,7 +39,7 @@
         }
 
 
-        // Key events
+        // Key up events
         document.addEventListener("keyup", onDocumentKeyUp, false);
         function onDocumentKeyUp(event) {
             if (event.which === 37) {  // Left
@@ -44,6 +52,29 @@
                 socket.emit("down", false);
             }
         }
+
+        $("body").mousemove(function(e) {
+            mouse_pos = [e.pageX, e.pageY];
+
+            if (mouse_down) {
+                dx = mouse_pos[0] - mouse_click_pos[0];
+                dy = mouse_pos[1] - mouse_click_pos[1];
+
+                let hyp = Math.sqrt(dx * dx + dy * dy);
+                let dx_ratio = Math.min(1, dx / max_move_dist);
+                let dy_ratio = Math.min(1, dy / max_move_dist);
+                socket.emit("move", dy_ratio, dx_ratio);
+            }
+        })
+
+        $('body').on('mousedown', function () {
+            mouse_click_pos = mouse_pos;
+            mouse_down = true;
+        });
+        $('body').on('mouseup', function () {
+            mouse_down = false;
+            socket.emit("stop");
+        });
     </script>
 </body>
 </html>
