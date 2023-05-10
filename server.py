@@ -124,6 +124,10 @@ async def init_app():
 if __name__ == "__main__":
     eventlet.monkey_patch()
 
+    # Clear ip.js
+    with open("static/ip.js", "w") as f:
+        f.write(f"network is not yet connected on interface {interface}")
+
     while True:  # Repeat until network is connected
         machine_ip = subprocess.check_output(f"ip -f inet addr show {interface} | awk '/inet / {{print $2}}'", shell=True).decode("utf-8")[:-1]
         machine_ip = machine_ip.split('/')[0]
