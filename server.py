@@ -22,6 +22,46 @@ MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
 sio = socketio.AsyncServer(async_mode='aiohttp',
                                    maxHttpBufferSize=MAX_BUFFER_SIZE, async_handlers=True)
 app = web.Application()
+
+# Use http for servo controls and socketio channel for streaming only
+async def handle_up(request):
+    pressed = request.match_info.get('pressed', "none")
+    if pressed == "1":
+        delta[0] = -0.5
+    else:
+        delta[0] = 0
+    return web.Response(text="ok")
+
+async def handle_down(request):
+    pressed = request.match_info.get('pressed', "none")
+    if pressed == "1":
+        delta[0] = 0.5
+    else:
+        delta[0] = 0
+    return web.Response(text="ok")
+
+async def handle_left(request):
+    pressed = request.match_info.get('pressed', "none")
+    if pressed == "1":
+        delta[1] = -0.5
+    else:
+        delta[1] = 0
+    return web.Response(text="ok")
+
+async def handle_right(request):
+    pressed = request.match_info.get('pressed', "none")
+    if pressed == "1":
+        delta[1] = 0.5
+    else:
+        delta[1] = 0
+    return web.Response(text="ok")
+
+
+app.router.add_post('/up_{pressed}', handle_up)
+app.router.add_post('/down_{pressed}', handle_down)
+app.router.add_post('/left_{pressed}', handle_left)
+app.router.add_post('/right_{pressed}', handle_right)
+
 sio.attach(app)
 
 # cv2 Video capture
@@ -57,35 +97,6 @@ app.router.add_static('/static', 'static')
 app.router.add_get('/', index)
 
 
-@sio.on('up')
-async def up(sid, pressed):
-    if pressed:
-        delta[0] = -0.5
-    else:
-        delta[0] = 0
-
-@sio.on('down')
-async def down(sid, pressed):
-    if pressed:
-        delta[0] = 0.5
-    else:
-        delta[0] = 0
-
-@sio.on('left')
-async def left(sid, pressed):
-    if pressed:
-        delta[1] = -0.5
-    else:
-        delta[1] = 0
-
-@sio.on('right')
-async def right(sid, pressed):
-    if pressed:
-        delta[1] = 0.5
-    else:
-        delta[1] = 0
-
-
 @sio.on("move")
 async def move(sio, dx, dy):
     delta[0] = dx
@@ -95,7 +106,6 @@ async def move(sio, dx, dy):
 async def stop(sio):
     delta[0] = 0
     delta[1] = 0
-
 
 @sio.on("reset")
 async def reset(sio):

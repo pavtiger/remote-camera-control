@@ -1,3 +1,5 @@
+const Http = new XMLHttpRequest();
+
 const max_move_dist = 300;
 let mouse_down = false;
 let mouse_click_pos = [], mouse_pos = [];
@@ -9,17 +11,22 @@ socket.on('image', (image) => {
 })
 document.getElementById('image').ondragstart = function() { return false; };  // Disable image drag
 
+
 // Key down events
 document.addEventListener("keydown", onDocumentKeyDown, false);
 function onDocumentKeyDown(event) {
     if (event.which === 37) {  // Left
-        socket.emit('left', true);
+        Http.open("POST", server_address + "/left_1");
+        Http.send();
     } else if (event.which === 39) {  // Right
-        socket.emit('right', true);
+        Http.open("POST", server_address + "/right_1");
+        Http.send();
     } else if (event.which === 38) {  // Up
-        socket.emit("up", true);
+        Http.open("POST", server_address + "/up_1");
+        Http.send();
     } else if (event.which === 40) {  // Down
-        socket.emit("down", true);
+        Http.open("POST", server_address + "/down_1");
+        Http.send();
     }
 }
 
@@ -28,13 +35,17 @@ function onDocumentKeyDown(event) {
 document.addEventListener("keyup", onDocumentKeyUp, false);
 function onDocumentKeyUp(event) {
     if (event.which === 37) {  // Left
-        socket.emit('left', false);
+        Http.open("POST", server_address + "/left_0");
+        Http.send();
     } else if (event.which === 39) {  // Right
-        socket.emit('right', false);
+        Http.open("POST", server_address + "/right_0");
+        Http.send();
     } else if (event.which === 38) {  // Up
-        socket.emit("up", false);
+        Http.open("POST", server_address + "/up_0");
+        Http.send();
     } else if (event.which === 40) {  // Down
-        socket.emit("down", false);
+        Http.open("POST", server_address + "/down_0");
+        Http.send();
     }
 }
 
