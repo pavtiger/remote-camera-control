@@ -52,11 +52,27 @@ $("body").mousemove(function(e) {
     }
 })
 
-$('body').on('mousedown', function () {
-    mouse_click_pos = mouse_pos;
-    mouse_down = true;
+$('body').on('mousedown', function(event) {
+    console.log(event.which);
+    switch (event.which) {
+        case 1:
+            // Left mouse button
+            mouse_click_pos = mouse_pos;
+            mouse_down = true;
+            break;
+        case 2:
+            // Middle mouse button
+            socket.emit("reset");
+            break;
+        case 3:
+            // Right mouse button
+            break;
+        default:
+            console.log("You have a strange mouse. Received input not in range [1, 3]");
+    }
 });
-$('body').on('mouseup', function () {
+
+$('body').on('mouseup', function(event) {
     mouse_down = false;
     socket.emit("stop");
 });
