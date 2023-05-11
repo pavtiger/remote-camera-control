@@ -12,55 +12,90 @@ import eventlet
 
 import pigpio
 
-from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step
+from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold
 
 
+last_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
-
 
 # Create a Socket.IO server
 sio = socketio.AsyncServer(async_mode='aiohttp',
                                    maxHttpBufferSize=MAX_BUFFER_SIZE, async_handlers=True)
 app = web.Application()
 
+
+def current_ms_time():
+    return round(time.time() * 1000)
+
 # Use http for servo controls and socketio channel for streaming only
 async def handle_up(request):
     pressed = request.match_info.get('pressed', "none")
-    if pressed == "1":
+    if pressed == "1" and (current_ms_time() - last_ms["up"]) > spill_threshold:
         delta[0] = -0.5
-    else:
+    elif pressed == "0":
         delta[0] = 0
+        last_ms["up"] = current_ms_time()
+
     return web.Response(text="ok")
 
 async def handle_down(request):
     pressed = request.match_info.get('pressed', "none")
-    if pressed == "1":
+    if pressed == "1" and (current_ms_time() - last_ms["down"]) > spill_threshold:
         delta[0] = 0.5
-    else:
+    elif pressed == "0":
         delta[0] = 0
+        last_ms["down"] = current_ms_time()
+
     return web.Response(text="ok")
 
 async def handle_left(request):
     pressed = request.match_info.get('pressed', "none")
-    if pressed == "1":
+    if pressed == "1" and (current_ms_time() - last_ms["left"]) > spill_threshold:
         delta[1] = -0.5
-    else:
+    elif pressed == "0":
         delta[1] = 0
+        last_ms["left"] = current_ms_time()
+
     return web.Response(text="ok")
 
 async def handle_right(request):
     pressed = request.match_info.get('pressed', "none")
-    if pressed == "1":
+    if pressed == "1" and (current_ms_time() - last_ms["right"]) > spill_threshold:
         delta[1] = 0.5
-    else:
+    elif pressed == "0":
         delta[1] = 0
+        last_ms["right"] = current_ms_time()
+
     return web.Response(text="ok")
+
+async def handle_move(request):
+    if (current_ms_time() - last_ms["stop"]) > spill_threshold:
+        dx = float(request.match_info.get('dx', "none"))
+        dy = float(request.match_info.get('dy', "none"))
+
+        delta[0] = dx
+        delta[1] = dy
+
+async def handle_stop(request):
+    global last_ms
+
+    last_ms["stop"] = current_ms_time()
+    delta[0] = 0
+    delta[1] = 0
+
+async def handle_reset(request):
+    pos[0] = starting_angles[0]
+    pos[1] = starting_angles[1]
 
 
 app.router.add_post('/up_{pressed}', handle_up)
 app.router.add_post('/down_{pressed}', handle_down)
 app.router.add_post('/left_{pressed}', handle_left)
 app.router.add_post('/right_{pressed}', handle_right)
+
+app.router.add_post('/move_{dx}_{dy}', handle_move)
+app.router.add_post('/stop', handle_stop)
+app.router.add_post('/reset', handle_reset)
 
 sio.attach(app)
 
