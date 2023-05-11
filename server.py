@@ -12,10 +12,11 @@ import eventlet
 
 import pigpio
 
-from config import interface, port, servo_pins, starting_angles, camera_index, resolution
+from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step
 
 
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
+
 
 # Create a Socket.IO server
 sio = socketio.AsyncServer(async_mode='aiohttp',
@@ -33,7 +34,6 @@ encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
 # Servo options
 # [vertical, horizontal]
 pos = deepcopy(starting_angles)  # Current position of servos
-STEP = [10, 10]  # Step distance for each moment (constant)
 delta = [0, 0]  # Servo delta at each moment in time in range [-1, 1]
 
 pwm = pigpio.pi()
@@ -118,8 +118,8 @@ async def send_images():
 
 async def move_camera():
     while True:
-        pos[0] = min(2500, max(500, pos[0] + delta[0] * STEP[0]))  # Vertical
-        pos[1] = min(2500, max(500, pos[1] - delta[1] * STEP[1]))  # Horizontal
+        pos[0] = min(2500, max(500, pos[0] + delta[0] * step[0]))  # Vertical
+        pos[1] = min(2500, max(500, pos[1] - delta[1] * step[1]))  # Horizontal
 
         pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
         pwm.set_servo_pulsewidth(servo_pins[1], pos[1])
