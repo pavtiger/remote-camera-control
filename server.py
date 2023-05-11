@@ -155,3 +155,4 @@ if __name__ == "__main__":
 
     web.run_app(init_app(), host=machine_ip, port=port)
     capture.release()
+
