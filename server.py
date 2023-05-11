@@ -12,7 +12,7 @@ import eventlet
 
 import pigpio
 
-from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold
+from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode
 
 
 last_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
@@ -69,12 +69,17 @@ async def handle_right(request):
     return web.Response(text="ok")
 
 async def handle_move(request):
-    if (current_ms_time() - last_ms["stop"]) > spill_threshold:
-        dx = float(request.match_info.get('dx', "none"))
-        dy = float(request.match_info.get('dy', "none"))
+    dx = float(request.match_info.get('dx', "none"))
+    dy = float(request.match_info.get('dy', "none"))
 
-        delta[0] = dx
-        delta[1] = dy
+    if (current_ms_time() - last_ms["stop"]) > spill_threshold:
+        if control_mode == "joystick":
+            delta[0] = dx
+            delta[1] = dy
+        else:
+            pos[0] = min(2500, max(500, pos[0] + dx * step[0]))  # Vertical
+            pos[1] = min(2500, max(500, pos[1] - dy * step[1]))  # Horizontal
+
 
 async def handle_stop(request):
     global last_ms

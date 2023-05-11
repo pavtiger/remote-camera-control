@@ -63,7 +63,6 @@ $("body").mousemove(function(e) {
         let hyp = Math.sqrt(dx * dx + dy * dy);
         let dx_ratio = Math.min(1, dx / max_move_dist);
         let dy_ratio = Math.min(1, dy / max_move_dist);
-        // socket.emit("move", dy_ratio, dx_ratio);
         Http.open("POST", server_address + "/move_" + dy_ratio + "_" + dx_ratio);
         Http.send();
     }
