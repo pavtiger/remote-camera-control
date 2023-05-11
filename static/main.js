@@ -1,3 +1,9 @@
+const Http = new XMLHttpRequest();
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 const max_move_dist = 300;
 let mouse_down = false;
 let mouse_click_pos = [], mouse_pos = [];
@@ -9,17 +15,22 @@ socket.on('image', (image) => {
 })
 document.getElementById('image').ondragstart = function() { return false; };  // Disable image drag
 
+
 // Key down events
 document.addEventListener("keydown", onDocumentKeyDown, false);
 function onDocumentKeyDown(event) {
     if (event.which === 37) {  // Left
-        socket.emit('left', true);
+        Http.open("POST", server_address + "/left_1");
+        Http.send();
     } else if (event.which === 39) {  // Right
-        socket.emit('right', true);
+        Http.open("POST", server_address + "/right_1");
+        Http.send();
     } else if (event.which === 38) {  // Up
-        socket.emit("up", true);
+        Http.open("POST", server_address + "/up_1");
+        Http.send();
     } else if (event.which === 40) {  // Down
-        socket.emit("down", true);
+        Http.open("POST", server_address + "/down_1");
+        Http.send();
     }
 }
 
@@ -28,13 +39,17 @@ function onDocumentKeyDown(event) {
 document.addEventListener("keyup", onDocumentKeyUp, false);
 function onDocumentKeyUp(event) {
     if (event.which === 37) {  // Left
-        socket.emit('left', false);
+        Http.open("POST", server_address + "/left_0");
+        Http.send();
     } else if (event.which === 39) {  // Right
-        socket.emit('right', false);
+        Http.open("POST", server_address + "/right_0");
+        Http.send();
     } else if (event.which === 38) {  // Up
-        socket.emit("up", false);
+        Http.open("POST", server_address + "/up_0");
+        Http.send();
     } else if (event.which === 40) {  // Down
-        socket.emit("down", false);
+        Http.open("POST", server_address + "/down_0");
+        Http.send();
     }
 }
 
@@ -48,12 +63,13 @@ $("body").mousemove(function(e) {
         let hyp = Math.sqrt(dx * dx + dy * dy);
         let dx_ratio = Math.min(1, dx / max_move_dist);
         let dy_ratio = Math.min(1, dy / max_move_dist);
-        socket.emit("move", dy_ratio, dx_ratio);
+        // socket.emit("move", dy_ratio, dx_ratio);
+        Http.open("POST", server_address + "/move_" + dy_ratio + "_" + dx_ratio);
+        Http.send();
     }
 })
 
 $('body').on('mousedown', function(event) {
-    console.log(event.which);
     switch (event.which) {
         case 1:
             // Left mouse button
@@ -62,7 +78,8 @@ $('body').on('mousedown', function(event) {
             break;
         case 2:
             // Middle mouse button
-            socket.emit("reset");
+            Http.open("POST", server_address + "/reset");
+            Http.send();
             break;
         case 3:
             // Right mouse button
@@ -73,7 +90,11 @@ $('body').on('mousedown', function(event) {
 });
 
 $('body').on('mouseup', function(event) {
+    if (mouse_down) {
+        // Send stop request
+        Http.open("POST", server_address + "/stop");
+        Http.send();
+    }
     mouse_down = false;
-    socket.emit("stop");
 });
 
