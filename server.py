@@ -11,7 +11,7 @@ import eventlet
 
 import pigpio
 
-from config import interface, port, servo_pins, starting_angles, camera_index
+from config import interface, port, servo_pins, starting_angles, camera_index, resolution
 
 
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
@@ -23,7 +23,10 @@ app = web.Application()
 sio.attach(app)
 
 # cv2 Video capture
-wCap = cv2.VideoCapture(camera_index)
+capture = cv2.VideoCapture(camera_index)
+capture.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0])
+capture.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
+
 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
 
 # Servo options
@@ -95,13 +98,16 @@ async def stop(sio):
 
 async def send_images():
     while True:
-        ret, frame = wCap.read()
-        frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+        grabbed, frame = capture.read()
+        if not grabbed:
+            break
+
+        # frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
         ret, image = cv2.imencode('.jpg', frame, encode_param)
         converted = base64.b64encode(image)
         await sio.emit('image', str(converted)[2:-1])
 
-        await sio.sleep(0.05)
+        await sio.sleep(0.01)
 
 
 async def move_camera():
@@ -128,6 +134,7 @@ if __name__ == "__main__":
     with open("static/ip.js", "w") as f:
         f.write(f"network is not yet connected on interface {interface}")
 
+    print(f"Waiting for network interface {interface}")
     while True:  # Repeat until network is connected
         machine_ip = subprocess.check_output(f"ip -f inet addr show {interface} | awk '/inet / {{print $2}}'", shell=True).decode("utf-8")[:-1]
         machine_ip = machine_ip.split('/')[0]
@@ -135,6 +142,7 @@ if __name__ == "__main__":
         if machine_ip != "":
             with open("static/ip.js", "w") as f:
                 f.write(f'var server_address = "http://{machine_ip}:{port}";')
+            print("Network has been connected, starting web server")
             break
 
         time.sleep(3)
