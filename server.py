@@ -3,6 +3,7 @@ import time
 import base64
 import signal
 import subprocess
+from copy import deepcopy
 
 import socketio
 import asyncio
@@ -31,7 +32,7 @@ encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
 
 # Servo options
 # [vertical, horizontal]
-pos = starting_angles  # Current position of servos
+pos = deepcopy(starting_angles)  # Current position of servos
 STEP = [10, 10]  # Step distance for each moment (constant)
 delta = [0, 0]  # Servo delta at each moment in time in range [-1, 1]
 
@@ -96,13 +97,18 @@ async def stop(sio):
     delta[1] = 0
 
 
+@sio.on("reset")
+async def reset(sio):
+    pos[0] = starting_angles[0]
+    pos[1] = starting_angles[1]
+
+
 async def send_images():
     while True:
         grabbed, frame = capture.read()
         if not grabbed:
             break
 
-        # frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
         ret, image = cv2.imencode('.jpg', frame, encode_param)
         converted = base64.b64encode(image)
         await sio.emit('image', str(converted)[2:-1])
@@ -148,4 +154,5 @@ if __name__ == "__main__":
         time.sleep(3)
 
     web.run_app(init_app(), host=machine_ip, port=port)
-    wCap.release()
+    capture.release()
+
