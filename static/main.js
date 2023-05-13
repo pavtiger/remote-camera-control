@@ -6,13 +6,14 @@ function sleep(ms) {
 
 const max_move_dist = 300;
 let mouse_down = false;
-let mouse_click_pos = [], mouse_pos = [];
+let mouse_click_pos = [];
+let mouse_pos = [];
 
 const socket = io.connect(server_address);
 socket.on('image', (image) => {
-    const imageElem = document.getElementById('image');
+    const imageElem = document.getElementById("image");
     imageElem.src = `data:image/jpeg;base64,${image}`;
-})
+});
 document.getElementById('image').ondragstart = function() { return false; };  // Disable image drag
 
 
@@ -53,12 +54,12 @@ function onDocumentKeyUp(event) {
     }
 }
 
-$("body").mousemove(function(e) {
+$("body").mousemove(function (e) {
     mouse_pos = [e.pageX, e.pageY];
 
     if (mouse_down) {
-        dx = mouse_pos[0] - mouse_click_pos[0];
-        dy = mouse_pos[1] - mouse_click_pos[1];
+        let dx = mouse_pos[0] - mouse_click_pos[0];
+        let dy = mouse_pos[1] - mouse_click_pos[1];
 
         let hyp = Math.sqrt(dx * dx + dy * dy);
         let dx_ratio = Math.min(1, dx / max_move_dist);
