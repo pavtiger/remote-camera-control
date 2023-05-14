@@ -20,6 +20,8 @@ document.getElementById('image').ondragstart = function() { return false; };  //
 // Key down events
 document.addEventListener("keydown", onDocumentKeyDown, false);
 function onDocumentKeyDown(event) {
+    if (event.repeat) { return }
+
     if (event.which === 37) {  // Left
         Http.open("POST", server_address + "/left_1");
         Http.send();
