@@ -1,12 +1,10 @@
 import cv2
 import time
 import base64
-import signal
 import subprocess
 from copy import deepcopy
 
 import socketio
-import asyncio
 from aiohttp import web
 import eventlet
 
@@ -124,8 +122,6 @@ async def handle_move(request):
 
 
 async def handle_stop(request):
-    global last_ms
-
     last_ms["stop"] = current_ms_time()
     delta[0] = 0
     delta[1] = 0
