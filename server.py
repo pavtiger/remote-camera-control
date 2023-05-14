@@ -10,10 +10,11 @@ import eventlet
 
 import pigpio
 
-from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements
+from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, big_step, long_press_threshold
 
 
 last_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
+pressed_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
 
 # Create a Socket.IO server
@@ -28,28 +29,44 @@ def current_ms_time():
 def up(pressed):
     if pressed == "1" and (current_ms_time() - last_ms["up"]) > spill_threshold:
         delta[0] = -0.5
+        pressed_ms["up"] = current_ms_time()
     elif pressed == "0":
+        if current_ms_time() - pressed_ms["up"] < long_press_threshold:
+            pos[0] -= big_step[0]
+
         delta[0] = 0
         last_ms["up"] = current_ms_time()
 
 def down(pressed):
     if pressed == "1" and (current_ms_time() - last_ms["down"]) > spill_threshold:
         delta[0] = 0.5
+        pressed_ms["down"] = current_ms_time()
     elif pressed == "0":
+        if current_ms_time() - pressed_ms["down"] < long_press_threshold:
+            pos[0] += big_step[0]
+
         delta[0] = 0
         last_ms["down"] = current_ms_time()
 
 def left(pressed):
     if pressed == "1" and (current_ms_time() - last_ms["left"]) > spill_threshold:
         delta[1] = -0.5
+        pressed_ms["left"] = current_ms_time()
     elif pressed == "0":
+        if current_ms_time() - pressed_ms["left"] < long_press_threshold:
+            pos[1] += big_step[1]
+
         delta[1] = 0
         last_ms["left"] = current_ms_time()
 
 def right(pressed):
     if pressed == "1" and (current_ms_time() - last_ms["right"]) > spill_threshold:
         delta[1] = 0.5
+        pressed_ms["right"] = current_ms_time()
     elif pressed == "0":
+        if current_ms_time() - pressed_ms["right"] < long_press_threshold:
+            pos[1] -= big_step[1]
+
         delta[1] = 0
         last_ms["right"] = current_ms_time()
 
