@@ -1,21 +1,20 @@
 import cv2
 import time
 import base64
-import signal
 import subprocess
 from copy import deepcopy
 
 import socketio
-import asyncio
 from aiohttp import web
 import eventlet
 
 import pigpio
 
-from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode, server_ip_override
+from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, big_step, long_press_threshold, server_ip_override
 
 
 last_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
+pressed_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
 
 # Create a Socket.IO server
@@ -27,63 +26,119 @@ app = web.Application()
 def current_ms_time():
     return round(time.time() * 1000)
 
-# Use http for servo controls and socketio channel for streaming only
-async def handle_up(request):
-    pressed = request.match_info.get('pressed', "none")
+def up(pressed):
     if pressed == "1" and (current_ms_time() - last_ms["up"]) > spill_threshold:
         delta[0] = -0.5
+        pressed_ms["up"] = current_ms_time()
     elif pressed == "0":
+        if current_ms_time() - pressed_ms["up"] < long_press_threshold:
+            pos[0] -= big_step[0]
+
         delta[0] = 0
         last_ms["up"] = current_ms_time()
 
-    return web.Response(text="ok")
-
-async def handle_down(request):
-    pressed = request.match_info.get('pressed', "none")
+def down(pressed):
     if pressed == "1" and (current_ms_time() - last_ms["down"]) > spill_threshold:
         delta[0] = 0.5
+        pressed_ms["down"] = current_ms_time()
     elif pressed == "0":
+        if current_ms_time() - pressed_ms["down"] < long_press_threshold:
+            pos[0] += big_step[0]
+
         delta[0] = 0
         last_ms["down"] = current_ms_time()
 
-    return web.Response(text="ok")
-
-async def handle_left(request):
-    pressed = request.match_info.get('pressed', "none")
+def left(pressed):
     if pressed == "1" and (current_ms_time() - last_ms["left"]) > spill_threshold:
         delta[1] = -0.5
+        pressed_ms["left"] = current_ms_time()
     elif pressed == "0":
+        if current_ms_time() - pressed_ms["left"] < long_press_threshold:
+            pos[1] += big_step[1]
+
         delta[1] = 0
         last_ms["left"] = current_ms_time()
 
-    return web.Response(text="ok")
-
-async def handle_right(request):
-    pressed = request.match_info.get('pressed', "none")
+def right(pressed):
     if pressed == "1" and (current_ms_time() - last_ms["right"]) > spill_threshold:
         delta[1] = 0.5
+        pressed_ms["right"] = current_ms_time()
     elif pressed == "0":
+        if current_ms_time() - pressed_ms["right"] < long_press_threshold:
+            pos[1] -= big_step[1]
+
         delta[1] = 0
         last_ms["right"] = current_ms_time()
 
+
+# Use http for servo controls and socketio channel for streaming only
+async def handle_up(request):
+    pressed = request.match_info.get('pressed', "none")
+
+    if axis_movements[0]:
+        if mirror_control_axis[0]:
+            down(pressed)
+        else:
+            up(pressed)
+
     return web.Response(text="ok")
 
+
+async def handle_down(request):
+    pressed = request.match_info.get('pressed', "none")
+
+    if axis_movements[0]:
+        if mirror_control_axis[0]:
+            up(pressed)
+        else:
+            down(pressed)
+
+    return web.Response(text="ok")
+
+
+async def handle_left(request):
+    pressed = request.match_info.get('pressed', "none")
+
+    if axis_movements[1]:
+        if mirror_control_axis[1]:
+            right(pressed)
+        else:
+            left(pressed)
+
+    return web.Response(text="ok")
+
+
+async def handle_right(request):
+    pressed = request.match_info.get('pressed', "none")
+
+    if axis_movements[1]:
+        if mirror_control_axis[1]:
+            left(pressed)
+        else:
+            right(pressed)
+
+    return web.Response(text="ok")
+
+
 async def handle_move(request):
-    dx = float(request.match_info.get('dx', "none"))
-    dy = float(request.match_info.get('dy', "none"))
+    dx = [0, float(request.match_info.get('dx', "none"))][axis_movements[0]]
+    dy = [0, float(request.match_info.get('dy', "none"))][axis_movements[1]]
+
+    if mirror_control_axis[0]:
+        dx = -dx
+    if mirror_control_axis[1]:
+        dy = -dy
 
     if (current_ms_time() - last_ms["stop"]) > spill_threshold:
         if control_mode == "joystick":
             delta[0] = dx
             delta[1] = dy
         else:
-            pos[0] = min(2500, max(500, pos[0] + dx * step[0]))  # Vertical
-            pos[1] = min(2500, max(500, pos[1] - dy * step[1]))  # Horizontal
+            pos[0] = min(limits[0][1], max(limits[0][0], pos[0] + dx * step[0]))  # Vertical
+            pos[1] = min(limits[0][1], max(limits[0][0], pos[1] - dy * step[1]))  # Horizontal
 
 
 async def handle_stop(request):
-    global last_ms
-
     last_ms["stop"] = current_ms_time()
     delta[0] = 0
     delta[1] = 0
@@ -159,7 +214,11 @@ async def send_images():
         if not grabbed:
             break
 
-        ret, image = cv2.imencode('.jpg', frame, encode_param)
+        for axis in [0, 1]:
+            if mirror_video_axis[axis]:
+                frame = cv2.flip(frame, axis)
+
+        _, image = cv2.imencode('.jpg', frame, encode_param)
         converted = base64.b64encode(image)
         await sio.emit('image', str(converted)[2:-1])
 
