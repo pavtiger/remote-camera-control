@@ -10,7 +10,7 @@ import eventlet
 
 import pigpio
 
-from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, big_step, long_press_threshold
+from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, big_step, long_press_threshold, server_ip_override
 
 
 last_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
@@ -256,11 +256,16 @@ if __name__ == "__main__":
 
         if machine_ip != "":
             with open("static/ip.js", "w") as f:
-                f.write(f'var server_address = "http://{machine_ip}:{port}";')
+                if server_ip_override == "":
+                    f.write(f'var server_address = "http://{machine_ip}:{port}";')
+                else:
+                    f.write(f'var server_address = "{server_ip_override}";')
+
             print("Network has been connected, starting web server")
             break
 
         time.sleep(3)
+
 
     web.run_app(init_app(), host=machine_ip, port=port)
     capture.release()
