@@ -13,6 +13,7 @@ big_step = [50, 50]
 
 # Video
 camera_index = 0
+video_encoding = 80
 resolution = [1280, 720]  # Width, height
 
 # Control
