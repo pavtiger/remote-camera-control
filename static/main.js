@@ -56,12 +56,12 @@ const Options = function () {
 
     this.control_mode = this.options["control_mode"];
 
-    this.mirror_video_axis_vert = this.options["mirror_video_axis"][0];
-    this.mirror_video_axis_hor = this.options["mirror_video_axis"][1];
-    this.mirror_control_axis_vert = this.options["mirror_control_axis"][0];
-    this.mirror_control_axis_hor = this.options["mirror_control_axis"][1];
-    this.axis_movements_vert = this.options["axis_movements"][0];
-    this.axis_movements_hor = this.options["axis_movements"][1];
+    this.mirror_video_axis_vert = Boolean(this.options["mirror_video_axis"][0]);
+    this.mirror_video_axis_hor = Boolean(this.options["mirror_video_axis"][1]);
+    this.mirror_control_axis_vert = Boolean(this.options["mirror_control_axis"][0]);
+    this.mirror_control_axis_hor = Boolean(this.options["mirror_control_axis"][1]);
+    this.axis_movements_vert = Boolean(this.options["axis_movements"][0]);
+    this.axis_movements_hor = Boolean(this.options["axis_movements"][1]);
 };
 
 
@@ -104,6 +104,7 @@ let gLimitsVertEnd = fLimits.add(opt, "limits_vert_end", 500, 2500).name("Vertic
 let gLimitsHorStart = fLimits.add(opt, "limits_hor_start", 500, 2500).name("Horizontal start");
 let gLimitsHorEnd = fLimits.add(opt, "limits_hor_end", 500, 2500).name("Horizontal end");
 
+
 let fStep = gui.addFolder("Servo step distances");
 let gStepVert = fStep.add(opt, "step_vert", 0, 30).name("Vertical");
 gStepVert.onChange(function(value) {
@@ -135,18 +136,47 @@ gResolutionHeight.onChange(function(value) {
 });
 
 let gControlsMode = gui.add(opt, "control_mode", ["drag", "joystick"]).name("Control mode");
+gControlsMode.onChange(function(value) {
+    Http.open("POST", server_address + "/change-control_mode-\"" + value + "\"");
+    Http.send();
+});
 
 let fMirrorVideo = gui.addFolder("Mirror video for axis");
-let gMirrorVideoVert = fMirrorVideo.add(opt, "mirror_video_axis_vert").name("Mirror video for axis");
-let gMirrorVideoHor = fMirrorVideo.add(opt, "mirror_video_axis_hor").name("Mirror video for axis");
+let gMirrorVideoVert = fMirrorVideo.add(opt, "mirror_video_axis_vert").name("Mirror video vertically");
+gMirrorVideoVert.onChange(function(value) {
+    console.log(value)
+    Http.open("POST", server_address + "/change-mirror_video_axis-[" + value + ", " + opt.mirror_video_axis_hor + "]");
+    Http.send();
+});
+let gMirrorVideoHor = fMirrorVideo.add(opt, "mirror_video_axis_hor").name("Mirror video horizontally");
+gMirrorVideoHor.onChange(function(value) {
+    Http.open("POST", server_address + "/change-mirror_video_axis-[" + opt.mirror_video_axis_vert + ", " + value + "]");
+    Http.send();
+});
 
 let fMirrorControl = gui.addFolder("Mirror controls for axis");
-let gMirrorControlVert = fMirrorControl.add(opt, "mirror_control_axis_vert").name("Mirror controls for axis");
-let gMirrorControlHor = fMirrorControl.add(opt, "mirror_control_axis_hor").name("Mirror controls for axis");
+let gMirrorControlVert = fMirrorControl.add(opt, "mirror_control_axis_vert").name("Mirror controls vertically");
+gMirrorControlVert.onChange(function(value) {
+    Http.open("POST", server_address + "/change-mirror_control_axis-[" + value + ", " + opt.mirror_control_axis_hor + "]");
+    Http.send();
+});
+let gMirrorControlHor = fMirrorControl.add(opt, "mirror_control_axis_hor").name("Mirror controls horizontally");
+gMirrorControlHor.onChange(function(value) {
+    Http.open("POST", server_address + "/change-mirror_control_axis-[" + opt.mirror_video_axis_vert + ", " + value + "]");
+    Http.send();
+});
 
 let fAxisMove = gui.addFolder("Allow movements for each axis");
-let gAxisMoveVert = fAxisMove.add(opt, "axis_movements_vert").name("Allow movements for each axis");
-let gAxisMoveHor = fAxisMove.add(opt, "axis_movements_hor").name("Allow movements for each axis");
+let gAxisMoveVert = fAxisMove.add(opt, "axis_movements_vert").name("Allow vertical (up, down)  movements");
+gAxisMoveVert.onChange(function(value) {
+    Http.open("POST", server_address + "/change-axis_movements-[" + value + ", " + opt.axis_movements_hor + "]");
+    Http.send();
+});
+let gAxisMoveHor = fAxisMove.add(opt, "axis_movements_hor").name("Allow horizontal (left, right) movements");
+gAxisMoveHor.onChange(function(value) {
+    Http.open("POST", server_address + "/change-axis_movements-[" + opt.axis_movements_vert + ", " + value + "]");
+    Http.send();
+});
 
 
 // Key down events

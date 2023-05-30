@@ -182,10 +182,12 @@ async def handle_options_get(request):
 async def handle_options_set(request):
     global capture
     global pwm
+    global control_mode
 
     option = request.match_info.get('option', "none")
     value = request.match_info.get('value', "none")
     print(option, value)
+    value = json.loads(value)
 
     # Save updated option to config.py
     with open("config.py", 'r') as file:
@@ -198,12 +200,12 @@ async def handle_options_set(request):
         key, val = sp[0].strip(), sp[1].strip()
 
         if key == option:
-            lines[i] = f"{option} = {value}\n"
+            lines[i] = f"{option} = {repr(value)}\n"
 
     with open("config.py", "w") as file:
         file.writelines(lines)
 
-    value = json.loads(value)
+    print(repr(value))
 
     # Update on the go
     if option == "camera_index":
@@ -235,6 +237,21 @@ async def handle_options_set(request):
     elif option == "step":
         step[0] = value[0]
         step[1] = value[1]
+
+    elif option == "control_mode":
+        control_mode = value
+
+    elif option == "mirror_video_axis":
+        mirror_video_axis[0] = value[0]
+        mirror_video_axis[1] = value[1]
+
+    elif option == "mirror_control_axis":
+        mirror_control_axis[0] = value[0]
+        mirror_control_axis[1] = value[1]
+
+    elif option == "axis_movements":
+        axis_movements[0] = value[0]
+        axis_movements[1] = value[1]
 
 
 app.router.add_post('/up_{pressed}', handle_up)
