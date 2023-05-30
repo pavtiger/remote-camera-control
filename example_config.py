@@ -3,6 +3,7 @@
 # Networking
 interface = "wlan0"
 port = 9002
+server_ip_override = ""  # Override ip that is used on client's side to connect to remote server (leave empty not to engage or in format "http://x.x.x.x:port")
 
 # Hardware
 servo_pins = [27, 17]
@@ -20,7 +21,6 @@ resolution = [1280, 720]  # Width, height
 spill_threshold = 100  # Amount of time that is counted as error in http requests (ms)
 long_press_threshold = 300
 control_mode = "drag"  # Either "joystick" or "drag"
-server_ip_override = ""  # Override ip that is used on client's side to connect to remote server (leave empty not to engage or in format "http://x.x.x.x:port")
 mirror_video_axis = [False, False]
 mirror_mouse_axis = [False, False]
 axis_movements = [True, True]

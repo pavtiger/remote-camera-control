@@ -217,6 +217,7 @@ async def handle_options_get(request):
         'starting_angles': starting_angles,
         'limits': limits,
         'step': step,
+        'big_step': big_step,
         'camera_index': camera_index,
         'resolution': resolution,
         'video_encoding': video_encoding,
@@ -303,6 +304,10 @@ async def handle_options_set(request):
     elif option == "axis_movements":
         axis_movements[0] = value[0]
         axis_movements[1] = value[1]
+    
+    elif option == "big_step":
+        big_step[0] = value[0]
+        big_step[1] = value[1]
 
 
 app.router.add_post('/up_{pressed}', handle_up)

@@ -50,6 +50,8 @@ const Options = function () {
 
     this.step_vert = this.options["step"][0];
     this.step_hor = this.options["step"][1];
+    this.big_step_vert = this.options["big_step"][0];
+    this.big_step_hor = this.options["big_step"][1];
 
     this.camera_index = this.options["camera_index"];
     this.resolution = "[" + this.options["resolution"][0] + ", " + this.options["resolution"][1] + "]";
@@ -132,16 +134,28 @@ let gLimitsHorEnd = fLimits.add(opt, "limits_hor_end", 500, 2500).name("Horizont
 
 
 let fStep = gui.addFolder("Servo step distances");
-let gStepVert = fStep.add(opt, "step_vert", 0, 30).name("Vertical");
-gStepVert.onChange(function(value) {
+let gPanVert = fStep.add(opt, "step_vert", 0, 30).name("Vertical Pan");
+gPanVert.onChange(function(value) {
     Http.open("POST", server_address + "/change-step-[" + Math.round(value.toString()) + ", " + Math.round(opt.step_hor) + "]");
     Http.send();
 });
-let gStepHor = fStep.add(opt, "step_hor", 0, 30).name("Horizontal");
-gStepHor.onChange(function(value) {
+let gPanHor = fStep.add(opt, "step_hor", 0, 30).name("Horizontal Pan");
+gPanHor.onChange(function(value) {
     Http.open("POST", server_address + "/change-step-[" + Math.round(opt.step_vert) + ", " + Math.round(value.toString()) + "]");
     Http.send();
 });
+
+let gStepVert = fStep.add(opt, "big_step_vert", 0, 200).name("Vertical Step");
+gStepVert.onChange(function(value) {
+    Http.open("POST", server_address + "/change-big_step-[" + Math.round(value.toString()) + ", " + Math.round(opt.big_step_hor) + "]");
+    Http.send();
+});
+let gStepHor = fStep.add(opt, "big_step_hor", 0, 200).name("Horizontal Step");
+gStepHor.onChange(function(value) {
+    Http.open("POST", server_address + "/change-big_step-[" + Math.round(opt.big_step_vert) + ", " + Math.round(value.toString()) + "]");
+    Http.send();
+});
+
 
 let fVideo = gui.addFolder("Video settings");
 let available_cameras = httpGet(server_address + "/available_cameras");
@@ -154,7 +168,6 @@ gCameraIndex.onChange(function(value) {
 
 let gResolutionWidth = fVideo.add(opt, "resolution", ["[320, 240]", "[480, 360]", "[640, 360]", "[640, 480]", "[1056, 594]", "[1280, 720]", "[1920, 1080]"]).name("Video resolution");
 gResolutionWidth.onChange(function(value) {
-    console.log(value);
     Http.open("POST", server_address + "/change-resolution-" + value);
     Http.send();
 });
@@ -165,6 +178,7 @@ gVideoEncoding.onChange(function(value) {
     Http.send();
 });
 fVideo.open();
+
 
 let gControlsMode = gui.add(opt, "control_mode", ["drag", "joystick"]).name("Control mode");
 gControlsMode.onChange(function(value) {
