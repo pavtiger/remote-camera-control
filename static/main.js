@@ -143,7 +143,9 @@ gStepHor.onChange(function(value) {
 });
 
 let fVideo = gui.addFolder("Video settings");
-let gCameraIndex = fVideo.add(opt, "camera_index").name("Camera index in system");
+let available_cameras = httpGet(server_address + "/available_cameras");
+
+let gCameraIndex = fVideo.add(opt, "camera_index", available_cameras).name("Camera index in system");
 gCameraIndex.onChange(function(value) {
     Http.open("POST", server_address + "/change-camera_index-" + Math.round(value.toString()));
     Http.send();

@@ -28,6 +28,33 @@ sio = socketio.AsyncServer(async_mode='aiohttp',
 app = web.Application()
 
 
+def list_ports():
+    """
+    Test the ports and returns a tuple with the available ports and the ones that are working.
+    """
+    non_working_ports = []
+    dev_port = 0
+    working_ports = []
+    available_ports = []
+    while len(non_working_ports) < 6: # if there are more than 5 non working ports stop the testing.
+        camera = cv2.VideoCapture(dev_port)
+        if not camera.isOpened():
+            non_working_ports.append(dev_port)
+            print("Port %s is not working." %dev_port)
+        else:
+            is_reading, img = camera.read()
+            w = camera.get(3)
+            h = camera.get(4)
+            if is_reading:
+                print("Port %s is working and reads images (%s x %s)" %(dev_port,h,w))
+                working_ports.append(dev_port)
+            else:
+                print("Port %s for camera ( %s x %s) is present but does not reads." %(dev_port,h,w))
+                available_ports.append(dev_port)
+        dev_port +=1
+    return available_ports,working_ports,non_working_ports
+
+
 # cv2 Video capture
 def init_camera(camera_index, resolution):
     capture = cv2.VideoCapture(camera_index)
@@ -35,6 +62,9 @@ def init_camera(camera_index, resolution):
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
 
     return capture
+
+
+system_cameras = list_ports()[1]
 
 capture = init_camera(camera_index, resolution)
 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), video_encoding]
@@ -186,6 +216,10 @@ async def handle_options_get(request):
     return web.json_response(dictionary)
 
 
+async def handle_get_cameras(request):
+    return web.json_response(system_cameras)
+
+
 async def handle_restart(request):
     capture.release()
     os.execl(sys.executable, sys.executable, *sys.argv)
@@ -266,6 +300,7 @@ app.router.add_post('/right_{pressed}', handle_right)
 app.router.add_post('/move_{dx}_{dy}', handle_move)
 app.router.add_post('/stop', handle_stop)
 app.router.add_post('/reset', handle_reset)
+app.router.add_get('/available_cameras', handle_get_cameras)
 
 app.router.add_post('/restart', handle_restart)
 app.router.add_post('/poweroff', handle_poweroff)
