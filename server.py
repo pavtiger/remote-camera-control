@@ -4,22 +4,21 @@ import sys
 import json
 import time
 import base64
-import signal
 import subprocess
 from copy import deepcopy
 from multidict import MultiDict
 
 import socketio
-import asyncio
 from aiohttp import web
 import eventlet
 
 import pigpio
 
-from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, video_encoding
+from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, big_step, long_press_threshold, server_ip_override, video_encoding
 
 
 last_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
+pressed_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
 
 # Create a Socket.IO server
@@ -92,28 +91,44 @@ def current_ms_time():
 def up(pressed):
     if pressed == "1" and (current_ms_time() - last_ms["up"]) > spill_threshold:
         delta[0] = -0.5
+        pressed_ms["up"] = current_ms_time()
     elif pressed == "0":
+        if current_ms_time() - pressed_ms["up"] < long_press_threshold:
+            pos[0] -= big_step[0]
+
         delta[0] = 0
         last_ms["up"] = current_ms_time()
 
 def down(pressed):
     if pressed == "1" and (current_ms_time() - last_ms["down"]) > spill_threshold:
         delta[0] = 0.5
+        pressed_ms["down"] = current_ms_time()
     elif pressed == "0":
+        if current_ms_time() - pressed_ms["down"] < long_press_threshold:
+            pos[0] += big_step[0]
+
         delta[0] = 0
         last_ms["down"] = current_ms_time()
 
 def left(pressed):
     if pressed == "1" and (current_ms_time() - last_ms["left"]) > spill_threshold:
         delta[1] = -0.5
+        pressed_ms["left"] = current_ms_time()
     elif pressed == "0":
+        if current_ms_time() - pressed_ms["left"] < long_press_threshold:
+            pos[1] += big_step[1]
+
         delta[1] = 0
         last_ms["left"] = current_ms_time()
 
 def right(pressed):
     if pressed == "1" and (current_ms_time() - last_ms["right"]) > spill_threshold:
         delta[1] = 0.5
+        pressed_ms["right"] = current_ms_time()
     elif pressed == "0":
+        if current_ms_time() - pressed_ms["right"] < long_press_threshold:
+            pos[1] -= big_step[1]
+
         delta[1] = 0
         last_ms["right"] = current_ms_time()
 
@@ -186,8 +201,6 @@ async def handle_move(request):
 
 
 async def handle_stop(request):
-    global last_ms
-
     last_ms["stop"] = current_ms_time()
     delta[0] = 0
     delta[1] = 0
@@ -385,11 +398,16 @@ if __name__ == "__main__":
 
         if machine_ip != "":
             with open("static/ip.js", "w") as f:
-                f.write(f'var server_address = "http://{machine_ip}:{port}";')
+                if server_ip_override == "":
+                    f.write(f'var server_address = "http://{machine_ip}:{port}";')
+                else:
+                    f.write(f'var server_address = "{server_ip_override}";')
+
             print("Network has been connected, starting web server")
             break
 
         time.sleep(3)
+
 
     web.run_app(init_app(), host=machine_ip, port=port)
     capture.release()
