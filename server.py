@@ -1,4 +1,6 @@
 import cv2
+import os
+import sys
 import json
 import time
 import base64
@@ -179,6 +181,15 @@ async def handle_options_get(request):
     return web.json_response(dictionary)
 
 
+async def handle_restart(request):
+    capture.release()
+    os.execl(sys.executable, sys.executable, *sys.argv)
+
+
+async def handle_poweroff(request):
+    os.system("sudo poweroff")
+
+
 async def handle_options_set(request):
     global capture
     global pwm
@@ -214,16 +225,6 @@ async def handle_options_set(request):
         capture.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0])
         capture.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
 
-    elif option == "servo_pins":
-        pwm = pigpio.pi()
-        pwm.set_mode(value[0], pigpio.OUTPUT)
-        pwm.set_PWM_frequency(value[0], 50)
-        pwm.set_servo_pulsewidth(value[0], pos[0])
-
-        pwm.set_mode(value[1], pigpio.OUTPUT)
-        pwm.set_PWM_frequency(value[1], 50)
-        pwm.set_servo_pulsewidth(value[1], pos[1])
-        
     elif option == "resolution":
         capture.release()
         capture = cv2.VideoCapture(camera_index)
@@ -262,6 +263,9 @@ app.router.add_post('/right_{pressed}', handle_right)
 app.router.add_post('/move_{dx}_{dy}', handle_move)
 app.router.add_post('/stop', handle_stop)
 app.router.add_post('/reset', handle_reset)
+
+app.router.add_post('/restart', handle_restart)
+app.router.add_post('/poweroff', handle_poweroff)
 
 app.router.add_get('/options', handle_options_get)
 app.router.add_post('/change-{option}-{value}', handle_options_set)

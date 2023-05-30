@@ -62,6 +62,27 @@ const Options = function () {
     this.mirror_control_axis_hor = Boolean(this.options["mirror_control_axis"][1]);
     this.axis_movements_vert = Boolean(this.options["axis_movements"][0]);
     this.axis_movements_hor = Boolean(this.options["axis_movements"][1]);
+
+    this.restart = function() {
+        Http.open("post", server_address + "/restart");
+        Http.send();
+    }
+
+    this.poweroff = function() {
+        Http.open("POST", server_address + "/poweroff");
+        Http.send();
+    }
+
+    this.flip_axis = function() {
+        [this.servo_pins_vert, this.servo_pins_hor] = [this.servo_pins_hor, this.servo_pins_vert];
+        for (var i in gui.__controllers) {
+            gui.__controllers[i].updateDisplay();
+        }
+
+        console.log(this.servo_pins_vert, this.servo_pins_hor);
+        Http.open("POST", server_address + "/change-servo_pins-[" + Math.round(this.servo_pins_vert) + ", " + Math.round(this.servo_pins_hor) + "]");
+        Http.send();
+    }
 };
 
 
@@ -77,24 +98,28 @@ gui = new dat.GUI({
 let fServoPins = gui.addFolder("Servo pins");
 let gServoPinsVert = fServoPins.add(opt, "servo_pins_vert").name("Vertical");
 gServoPinsVert.onChange(function(value) {
-    Http.open("POST", server_address + "/change-servo_pins-[" + Math.round(value.toString()) + ", " + Math.round(opt.servo_pins_hor.toString()) + "]");
+    Http.open("POST", server_address + "/change-servo_pins-[" + Math.round(value).toString() + ", " + Math.round(opt.servo_pins_hor).toString() + "]");
     Http.send();
 });
 let gServoPinsHor = fServoPins.add(opt, "servo_pins_hor").name("Horizontal");
 gServoPinsHor.onChange(function(value) {
-    Http.open("POST", server_address + "/change-servo_pins-[" + Math.round(opt.servo_pins_vert.toString()) + ", "  + Math.round(value.toString()) + "]");
+    Http.open("POST", server_address + "/change-servo_pins-[" + Math.round(opt.servo_pins_vert).toString() + ", "  + Math.round(value).toString() + "]");
     Http.send();
 });
+fServoPins.add(opt, "restart").name("Apply");
+
+gui.add(opt, "flip_axis").name("Flip axis");
+
 
 let fStartingAngles = gui.addFolder("Servo starting angles");
 let gStartingAnglesVert = fStartingAngles.add(opt, "starting_angles_vert", 500, 2500).name("Vertical");
 gStartingAnglesVert.onChange(function(value) {
-    Http.open("POST", server_address + "/change-starting_angles-[" + Math.round(value.toString()) + ", " + Math.round(opt.starting_angles_hor) + "]");
+    Http.open("POST", server_address + "/change-starting_angles-[" + Math.round(value).toString() + ", " + Math.round(opt.starting_angles_hor).toString() + "]");
     Http.send();
 });
 let gStartingAnglesHor = fStartingAngles.add(opt, "starting_angles_hor", 500, 2500).name("Horizontal");
 gStartingAnglesHor.onChange(function(value) {
-    Http.open("POST", server_address + "/change-starting_angles-[" + Math.round(opt.starting_angles_vert) + ", " + Math.round(value.toString()) + "]");
+    Http.open("POST", server_address + "/change-starting_angles-[" + Math.round(opt.starting_angles_vert).toString() + ", " + Math.round(value).toString() + "]");
     Http.send();
 });
 
@@ -178,6 +203,8 @@ gAxisMoveHor.onChange(function(value) {
     Http.send();
 });
 
+gui.add(opt, "restart").name("Restart server");
+gui.add(opt, "poweroff").name("Shutdown machine");
 
 // Key down events
 document.addEventListener("keydown", onDocumentKeyDown, false);
