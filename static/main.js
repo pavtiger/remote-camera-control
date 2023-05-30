@@ -26,16 +26,20 @@ let mouse_click_pos = [];
 let mouse_pos = [];
 
 const socket = io.connect(server_address);
-socket.on('image', (image) => {
+socket.on("image", (image) => {
     const imageElem = document.getElementById("image");
     imageElem.src = `data:image/jpeg;base64,${image}`;
 });
-document.getElementById('image').ondragstart = function() { return false; };  // Disable image drag
+document.getElementById("image").ondragstart = function() { return false; };  // Disable image drag
 
 
 const Options = function () {
     // Retrieve options from server
-    this.options = httpGet(server_address + '/options');
+    this.options = httpGet(server_address + "/options");
+
+    let pos = httpGet(server_address + "/get_pos");
+    this.pos_vert = parseInt(pos["vert"]);
+    this.pos_hor = parseInt(pos["hor"]);
 
     this.servo_pins_vert = this.options["servo_pins"][0];
     this.servo_pins_hor = this.options["servo_pins"][1];
@@ -96,6 +100,20 @@ gui = new dat.GUI({
     preset: "Flow",
     width: 500
 });
+
+
+let fPos = gui.addFolder("Current position");
+let gPosVert = fPos.add(opt, "pos_vert", 500, 2500).name("Vertical").listen();
+gPosVert.onChange(function(value) {
+    Http.open("POST", server_address + "/set_pos_" + Math.round(value).toString() + "_" + Math.round(opt.pos_hor).toString());
+    Http.send();
+});
+let gPosHor = fPos.add(opt, "pos_hor", 500, 2500).name("Horizontal").listen();
+gPosHor.onChange(function(value) {
+    Http.open("POST", server_address + "/set_pos_" + Math.round(opt.pos_vert).toString() + "_"  + Math.round(value).toString());
+    Http.send();
+});
+fPos.open();
 
 
 let fServoPins = gui.addFolder("Servo pins");
@@ -225,6 +243,14 @@ gAxisMoveHor.onChange(function(value) {
 
 gui.add(opt, "restart").name("Restart server");
 gui.add(opt, "poweroff").name("Shutdown machine");
+
+// Update current position every second
+setInterval(updatePos, 100);
+function updatePos() {
+    let pos = httpGet(server_address + "/get_pos");
+    opt.pos_vert = parseInt(pos["vert"]);
+    opt.pos_hor = parseInt(pos["hor"]);
+} 
 
 // Key down events
 document.addEventListener("keydown", onDocumentKeyDown, false);
