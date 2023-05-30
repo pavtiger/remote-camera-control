@@ -51,8 +51,8 @@ const Options = function () {
     this.step_hor = this.options["step"][1];
 
     this.camera_index = this.options["camera_index"];
-    this.resolution_width = this.options["resolution"][0];
-    this.resolution_height = this.options["resolution"][1];
+    this.resolution = "[" + this.options["resolution"][0] + ", " + this.options["resolution"][1] + "]";
+    this.video_encoding = this.options["video_encoding"];
 
     this.control_mode = this.options["control_mode"];
 
@@ -142,23 +142,26 @@ gStepHor.onChange(function(value) {
     Http.send();
 });
 
-let gCameraIndex = gui.add(opt, "camera_index").name("Camera index in system");
+let fVideo = gui.addFolder("Video settings");
+let gCameraIndex = fVideo.add(opt, "camera_index").name("Camera index in system");
 gCameraIndex.onChange(function(value) {
     Http.open("POST", server_address + "/change-camera_index-" + Math.round(value.toString()));
     Http.send();
 });
 
-let fResolution = gui.addFolder("Video resolution");
-let gResolutionWidth = fResolution.add(opt, "resolution_width").name("Width");
+let gResolutionWidth = fVideo.add(opt, "resolution", ["[320, 240]", "[480, 360]", "[640, 360]", "[640, 480]", "[1056, 594]", "[1280, 720]", "[1920, 1080]"]).name("Video resolution");
 gResolutionWidth.onChange(function(value) {
-    Http.open("POST", server_address + "/change-resolution-[" + Math.round(value.toString()) + ", " + Math.round(opt.resolution_height) + "]");
+    console.log(value);
+    Http.open("POST", server_address + "/change-resolution-" + value);
     Http.send();
 });
-let gResolutionHeight = fResolution.add(opt, "resolution_height").name("Height");
-gResolutionHeight.onChange(function(value) {
-    Http.open("POST", server_address + "/change-resolution-[" + Math.round(opt.resolution_width) + ", " + Math.round(value.toString()) + "]");
+
+let gVideoEncoding = fVideo.add(opt, "video_encoding", 0, 100).name("Video encoding");
+gVideoEncoding.onChange(function(value) {
+    Http.open("POST", server_address + "/change-video_encoding-" + Math.round(value));
     Http.send();
 });
+fVideo.open();
 
 let gControlsMode = gui.add(opt, "control_mode", ["drag", "joystick"]).name("Control mode");
 gControlsMode.onChange(function(value) {

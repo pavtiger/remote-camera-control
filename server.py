@@ -16,7 +16,7 @@ import eventlet
 
 import pigpio
 
-from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements
+from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, video_encoding
 
 
 last_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
@@ -29,11 +29,15 @@ app = web.Application()
 
 
 # cv2 Video capture
-capture = cv2.VideoCapture(camera_index)
-capture.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0])
-capture.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
+def init_camera(camera_index, resolution):
+    capture = cv2.VideoCapture(camera_index)
+    capture.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0])
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
 
-encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+    return capture
+
+capture = init_camera(camera_index, resolution)
+encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), video_encoding]
 
 # Servo options
 # [vertical, horizontal]
@@ -172,6 +176,7 @@ async def handle_options_get(request):
         'step': step,
         'camera_index': camera_index,
         'resolution': resolution,
+        'video_encoding': video_encoding,
         'control_mode': control_mode,
         'mirror_video_axis': mirror_video_axis,
         'mirror_control_axis': mirror_control_axis,
@@ -191,13 +196,10 @@ async def handle_poweroff(request):
 
 
 async def handle_options_set(request):
-    global capture
-    global pwm
-    global control_mode
+    global capture, control_mode, camera_index, resolution, encode_param
 
     option = request.match_info.get('option', "none")
     value = request.match_info.get('value', "none")
-    print(option, value)
     value = json.loads(value)
 
     # Save updated option to config.py
@@ -216,21 +218,22 @@ async def handle_options_set(request):
     with open("config.py", "w") as file:
         file.writelines(lines)
 
-    print(repr(value))
 
     # Update on the go
     if option == "camera_index":
         capture.release()
-        capture = cv2.VideoCapture(value)
-        capture.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0])
-        capture.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
+        camera_index = value
+        capture = init_camera(camera_index, resolution)
 
     elif option == "resolution":
         capture.release()
-        capture = cv2.VideoCapture(camera_index)
-        capture.set(cv2.CAP_PROP_FRAME_WIDTH, value[0])
-        capture.set(cv2.CAP_PROP_FRAME_HEIGHT, value[1])
-    
+        resolution[0] = value[0]
+        resolution[1] = value[1]
+        capture = init_camera(camera_index, resolution)
+
+    elif option == "video_encoding":
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), value]
+
     elif option == "starting_angles":
         pos[0] = value[0]
         pos[1] = value[1]
