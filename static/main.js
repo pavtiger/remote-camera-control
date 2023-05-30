@@ -38,8 +38,8 @@ const Options = function () {
     this.options = httpGet(server_address + "/options");
 
     let pos = httpGet(server_address + "/get_pos");
-    this.pos_vert = parseInt(pos["vert"]);
-    this.pos_hor = parseInt(pos["hor"]);
+    this.pos_vert = parseInt(pos["vert"], 10);
+    this.pos_hor = parseInt(pos["hor"], 10);
 
     this.servo_pins_vert = this.options["servo_pins"][0];
     this.servo_pins_hor = this.options["servo_pins"][1];
@@ -242,14 +242,15 @@ gAxisMoveHor.onChange(function(value) {
 });
 
 gui.add(opt, "restart").name("Restart server");
-gui.add(opt, "poweroff").name("Shutdown machine");
+let fPoweroff = gui.addFolder("Shutdown machine");
+fPoweroff.add(opt, "poweroff").name("Shutdown machine");
 
 // Update current position every second
 setInterval(updatePos, 100);
 function updatePos() {
     let pos = httpGet(server_address + "/get_pos");
-    opt.pos_vert = parseInt(pos["vert"]);
-    opt.pos_hor = parseInt(pos["hor"]);
+    opt.pos_vert = parseInt(pos["vert"], 10);
+    opt.pos_hor = parseInt(pos["hor"], 10);
 } 
 
 // Key down events
