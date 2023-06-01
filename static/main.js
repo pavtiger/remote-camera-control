@@ -1,4 +1,4 @@
-const Http = new XMLHttpRequest();
+const HTTP = new XMLHttpRequest();
 
 
 function httpGet(url) {
@@ -71,13 +71,13 @@ const Options = function () {
     this.axis_movements_hor = Boolean(this.options["axis_movements"][1]);
 
     this.restart = function() {
-        Http.open("post", server_address + "/restart");
-        Http.send();
+        HTTP.open("post", server_address + "/restart");
+        HTTP.send();
     }
 
     this.poweroff = function() {
-        Http.open("POST", server_address + "/poweroff");
-        Http.send();
+        HTTP.open("POST", server_address + "/poweroff");
+        HTTP.send();
     }
 
     this.flip_axis = function() {
@@ -87,8 +87,8 @@ const Options = function () {
         }
 
         console.log(this.servo_pins_vert, this.servo_pins_hor);
-        Http.open("POST", server_address + "/change-servo_pins-[" + Math.round(this.servo_pins_vert) + ", " + Math.round(this.servo_pins_hor) + "]");
-        Http.send();
+        HTTP.open("POST", server_address + "/change-servo_pins-[" + Math.round(this.servo_pins_vert) + ", " + Math.round(this.servo_pins_hor) + "]");
+        HTTP.send();
     }
 };
 
@@ -105,13 +105,13 @@ gui = new dat.GUI({
 let fPos = gui.addFolder("Current position");
 let gPosVert = fPos.add(opt, "pos_vert", 500, 2500).name("Vertical").listen();
 gPosVert.onChange(function(value) {
-    Http.open("POST", server_address + "/set_pos_" + Math.round(value).toString() + "_" + Math.round(opt.pos_hor).toString());
-    Http.send();
+    HTTP.open("POST", server_address + "/set_pos_" + Math.round(value).toString() + "_" + Math.round(opt.pos_hor).toString());
+    HTTP.send();
 });
 let gPosHor = fPos.add(opt, "pos_hor", 500, 2500).name("Horizontal").listen();
 gPosHor.onChange(function(value) {
-    Http.open("POST", server_address + "/set_pos_" + Math.round(opt.pos_vert).toString() + "_"  + Math.round(value).toString());
-    Http.send();
+    HTTP.open("POST", server_address + "/set_pos_" + Math.round(opt.pos_vert).toString() + "_"  + Math.round(value).toString());
+    HTTP.send();
 });
 fPos.open();
 
@@ -119,13 +119,13 @@ fPos.open();
 let fServoPins = gui.addFolder("Servo pins");
 let gServoPinsVert = fServoPins.add(opt, "servo_pins_vert").name("Vertical");
 gServoPinsVert.onChange(function(value) {
-    Http.open("POST", server_address + "/change-servo_pins-[" + Math.round(value).toString() + ", " + Math.round(opt.servo_pins_hor).toString() + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-servo_pins-[" + Math.round(value).toString() + ", " + Math.round(opt.servo_pins_hor).toString() + "]");
+    HTTP.send();
 });
 let gServoPinsHor = fServoPins.add(opt, "servo_pins_hor").name("Horizontal");
 gServoPinsHor.onChange(function(value) {
-    Http.open("POST", server_address + "/change-servo_pins-[" + Math.round(opt.servo_pins_vert).toString() + ", "  + Math.round(value).toString() + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-servo_pins-[" + Math.round(opt.servo_pins_vert).toString() + ", "  + Math.round(value).toString() + "]");
+    HTTP.send();
 });
 fServoPins.add(opt, "restart").name("Apply");
 
@@ -135,13 +135,13 @@ gui.add(opt, "flip_axis").name("Flip axis");
 let fStartingAngles = gui.addFolder("Servo starting angles");
 let gStartingAnglesVert = fStartingAngles.add(opt, "starting_angles_vert", 500, 2500).name("Vertical");
 gStartingAnglesVert.onChange(function(value) {
-    Http.open("POST", server_address + "/change-starting_angles-[" + Math.round(value).toString() + ", " + Math.round(opt.starting_angles_hor).toString() + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-starting_angles-[" + Math.round(value).toString() + ", " + Math.round(opt.starting_angles_hor).toString() + "]");
+    HTTP.send();
 });
 let gStartingAnglesHor = fStartingAngles.add(opt, "starting_angles_hor", 500, 2500).name("Horizontal");
 gStartingAnglesHor.onChange(function(value) {
-    Http.open("POST", server_address + "/change-starting_angles-[" + Math.round(opt.starting_angles_vert).toString() + ", " + Math.round(value).toString() + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-starting_angles-[" + Math.round(opt.starting_angles_vert).toString() + ", " + Math.round(value).toString() + "]");
+    HTTP.send();
 });
 
 let fLimits = gui.addFolder("Servo limits on each axis");
@@ -154,24 +154,24 @@ let gLimitsHorEnd = fLimits.add(opt, "limits_hor_end", 500, 2500).name("Horizont
 let fStep = gui.addFolder("Servo step distances");
 let gPanVert = fStep.add(opt, "step_vert", 0, 30).name("Vertical Pan");
 gPanVert.onChange(function(value) {
-    Http.open("POST", server_address + "/change-step-[" + Math.round(value.toString()) + ", " + Math.round(opt.step_hor) + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-step-[" + Math.round(value.toString()) + ", " + Math.round(opt.step_hor) + "]");
+    HTTP.send();
 });
 let gPanHor = fStep.add(opt, "step_hor", 0, 30).name("Horizontal Pan");
 gPanHor.onChange(function(value) {
-    Http.open("POST", server_address + "/change-step-[" + Math.round(opt.step_vert) + ", " + Math.round(value.toString()) + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-step-[" + Math.round(opt.step_vert) + ", " + Math.round(value.toString()) + "]");
+    HTTP.send();
 });
 
 let gStepVert = fStep.add(opt, "big_step_vert", 0, 200).name("Vertical Step");
 gStepVert.onChange(function(value) {
-    Http.open("POST", server_address + "/change-big_step-[" + Math.round(value.toString()) + ", " + Math.round(opt.big_step_hor) + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-big_step-[" + Math.round(value.toString()) + ", " + Math.round(opt.big_step_hor) + "]");
+    HTTP.send();
 });
 let gStepHor = fStep.add(opt, "big_step_hor", 0, 200).name("Horizontal Step");
 gStepHor.onChange(function(value) {
-    Http.open("POST", server_address + "/change-big_step-[" + Math.round(opt.big_step_vert) + ", " + Math.round(value.toString()) + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-big_step-[" + Math.round(opt.big_step_vert) + ", " + Math.round(value.toString()) + "]");
+    HTTP.send();
 });
 
 
@@ -180,65 +180,65 @@ let available_cameras = httpGet(server_address + "/available_cameras");
 
 let gCameraIndex = fVideo.add(opt, "camera_index", available_cameras).name("Camera index in system");
 gCameraIndex.onChange(function(value) {
-    Http.open("POST", server_address + "/change-camera_index-" + Math.round(value.toString()));
-    Http.send();
+    HTTP.open("POST", server_address + "/change-camera_index-" + Math.round(value.toString()));
+    HTTP.send();
 });
 
 let gResolutionWidth = fVideo.add(opt, "resolution", ["[320, 240]", "[480, 360]", "[640, 360]", "[640, 480]", "[1056, 594]", "[1280, 720]", "[1920, 1080]"]).name("Video resolution");
 gResolutionWidth.onChange(function(value) {
-    Http.open("POST", server_address + "/change-resolution-" + value);
-    Http.send();
+    HTTP.open("POST", server_address + "/change-resolution-" + value);
+    HTTP.send();
 });
 
 let gVideoEncoding = fVideo.add(opt, "video_encoding", 0, 100).name("Video encoding");
 gVideoEncoding.onChange(function(value) {
-    Http.open("POST", server_address + "/change-video_encoding-" + Math.round(value));
-    Http.send();
+    HTTP.open("POST", server_address + "/change-video_encoding-" + Math.round(value));
+    HTTP.send();
 });
 fVideo.open();
 
 
 let gControlsMode = gui.add(opt, "control_mode", ["drag", "joystick"]).name("Control mode");
 gControlsMode.onChange(function(value) {
-    Http.open("POST", server_address + "/change-control_mode-\"" + value + "\"");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-control_mode-\"" + value + "\"");
+    HTTP.send();
 });
 
 let fMirrorVideo = gui.addFolder("Mirror video for axis");
 let gMirrorVideoVert = fMirrorVideo.add(opt, "mirror_video_axis_vert").name("Mirror video vertically");
 gMirrorVideoVert.onChange(function(value) {
     console.log(value)
-    Http.open("POST", server_address + "/change-mirror_video_axis-[" + value + ", " + opt.mirror_video_axis_hor + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-mirror_video_axis-[" + value + ", " + opt.mirror_video_axis_hor + "]");
+    HTTP.send();
 });
 let gMirrorVideoHor = fMirrorVideo.add(opt, "mirror_video_axis_hor").name("Mirror video horizontally");
 gMirrorVideoHor.onChange(function(value) {
-    Http.open("POST", server_address + "/change-mirror_video_axis-[" + opt.mirror_video_axis_vert + ", " + value + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-mirror_video_axis-[" + opt.mirror_video_axis_vert + ", " + value + "]");
+    HTTP.send();
 });
 
 let fMirrorControl = gui.addFolder("Mirror controls for axis");
 let gMirrorControlVert = fMirrorControl.add(opt, "mirror_control_axis_vert").name("Mirror controls vertically");
 gMirrorControlVert.onChange(function(value) {
-    Http.open("POST", server_address + "/change-mirror_control_axis-[" + value + ", " + opt.mirror_control_axis_hor + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-mirror_control_axis-[" + value + ", " + opt.mirror_control_axis_hor + "]");
+    HTTP.send();
 });
 let gMirrorControlHor = fMirrorControl.add(opt, "mirror_control_axis_hor").name("Mirror controls horizontally");
 gMirrorControlHor.onChange(function(value) {
-    Http.open("POST", server_address + "/change-mirror_control_axis-[" + opt.mirror_video_axis_vert + ", " + value + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-mirror_control_axis-[" + opt.mirror_video_axis_vert + ", " + value + "]");
+    HTTP.send();
 });
 
 let fAxisMove = gui.addFolder("Allow movements for each axis");
 let gAxisMoveVert = fAxisMove.add(opt, "axis_movements_vert").name("Allow vertical (up, down)  movements");
 gAxisMoveVert.onChange(function(value) {
-    Http.open("POST", server_address + "/change-axis_movements-[" + value + ", " + opt.axis_movements_hor + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-axis_movements-[" + value + ", " + opt.axis_movements_hor + "]");
+    HTTP.send();
 });
 let gAxisMoveHor = fAxisMove.add(opt, "axis_movements_hor").name("Allow horizontal (left, right) movements");
 gAxisMoveHor.onChange(function(value) {
-    Http.open("POST", server_address + "/change-axis_movements-[" + opt.axis_movements_vert + ", " + value + "]");
-    Http.send();
+    HTTP.open("POST", server_address + "/change-axis_movements-[" + opt.axis_movements_vert + ", " + value + "]");
+    HTTP.send();
 });
 
 gui.add(opt, "restart").name("Restart server");
@@ -259,17 +259,17 @@ function onDocumentKeyDown(event) {
     if (event.repeat) { return }
 
     if (event.which === 37) {  // Left
-        Http.open("POST", server_address + "/left_1");
-        Http.send();
+        HTTP.open("POST", server_address + "/left_1");
+        HTTP.send();
     } else if (event.which === 39) {  // Right
-        Http.open("POST", server_address + "/right_1");
-        Http.send();
+        HTTP.open("POST", server_address + "/right_1");
+        HTTP.send();
     } else if (event.which === 38) {  // Up
-        Http.open("POST", server_address + "/up_1");
-        Http.send();
+        HTTP.open("POST", server_address + "/up_1");
+        HTTP.send();
     } else if (event.which === 40) {  // Down
-        Http.open("POST", server_address + "/down_1");
-        Http.send();
+        HTTP.open("POST", server_address + "/down_1");
+        HTTP.send();
     }
 }
 
@@ -278,17 +278,17 @@ function onDocumentKeyDown(event) {
 document.addEventListener("keyup", onDocumentKeyUp, false);
 function onDocumentKeyUp(event) {
     if (event.which === 37) {  // Left
-        Http.open("POST", server_address + "/left_0");
-        Http.send();
+        HTTP.open("POST", server_address + "/left_0");
+        HTTP.send();
     } else if (event.which === 39) {  // Right
-        Http.open("POST", server_address + "/right_0");
-        Http.send();
+        HTTP.open("POST", server_address + "/right_0");
+        HTTP.send();
     } else if (event.which === 38) {  // Up
-        Http.open("POST", server_address + "/up_0");
-        Http.send();
+        HTTP.open("POST", server_address + "/up_0");
+        HTTP.send();
     } else if (event.which === 40) {  // Down
-        Http.open("POST", server_address + "/down_0");
-        Http.send();
+        HTTP.open("POST", server_address + "/down_0");
+        HTTP.send();
     }
 }
 
@@ -302,8 +302,8 @@ $("body").mousemove(function (e) {
         let hyp = Math.sqrt(dx * dx + dy * dy);
         let dx_ratio = Math.min(1, dx / max_move_dist);
         let dy_ratio = Math.min(1, dy / max_move_dist);
-        Http.open("POST", server_address + "/move_" + dy_ratio + "_" + dx_ratio);
-        Http.send();
+        HTTP.open("POST", server_address + "/move_" + dy_ratio + "_" + dx_ratio);
+        HTTP.send();
     }
 })
 
@@ -316,8 +316,8 @@ $('body').on('mousedown', function(event) {
             break;
         case 2:
             // Middle mouse button
-            Http.open("POST", server_address + "/reset");
-            Http.send();
+            HTTP.open("POST", server_address + "/reset");
+            HTTP.send();
             break;
         case 3:
             // Right mouse button
@@ -330,8 +330,8 @@ $('body').on('mousedown', function(event) {
 $('body').on('mouseup', function(event) {
     if (mouse_down) {
         // Send stop request
-        Http.open("POST", server_address + "/stop");
-        Http.send();
+        HTTP.open("POST", server_address + "/stop");
+        HTTP.send();
     }
     mouse_down = false;
 });
