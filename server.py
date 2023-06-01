@@ -217,6 +217,7 @@ async def handle_options_get(request):
         'starting_angles': starting_angles,
         'limits': limits,
         'step': step,
+        'big_step': big_step,
         'camera_index': camera_index,
         'resolution': resolution,
         'video_encoding': video_encoding,
@@ -240,6 +241,18 @@ async def handle_restart(request):
 
 async def handle_poweroff(request):
     os.system("sudo poweroff")
+
+
+async def handle_get_pos(request):
+    return web.json_response({"vert": pos[0], "hor": pos[1]})
+
+
+async def handle_set_pos(request):
+    x = int(request.match_info.get('x', "none"))
+    y = int(request.match_info.get('y', "none"))
+
+    pos[0] = x
+    pos[1] = y
 
 
 async def handle_options_set(request):
@@ -304,7 +317,12 @@ async def handle_options_set(request):
         axis_movements[0] = value[0]
         axis_movements[1] = value[1]
 
+    elif option == "big_step":
+        big_step[0] = value[0]
+        big_step[1] = value[1]
 
+
+# Handle arrow presses
 app.router.add_post('/up_{pressed}', handle_up)
 app.router.add_post('/down_{pressed}', handle_down)
 app.router.add_post('/left_{pressed}', handle_left)
@@ -313,7 +331,10 @@ app.router.add_post('/right_{pressed}', handle_right)
 app.router.add_post('/move_{dx}_{dy}', handle_move)
 app.router.add_post('/stop', handle_stop)
 app.router.add_post('/reset', handle_reset)
+
 app.router.add_get('/available_cameras', handle_get_cameras)
+app.router.add_get('/get_pos', handle_get_pos)
+app.router.add_post('/set_pos_{x}_{y}', handle_set_pos)
 
 app.router.add_post('/restart', handle_restart)
 app.router.add_post('/poweroff', handle_poweroff)
