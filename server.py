@@ -8,8 +8,10 @@ import subprocess
 from copy import deepcopy
 from multidict import MultiDict
 
+import asyncio
 import socketio
 from aiohttp import web
+import aiohttp_cors
 import eventlet
 
 import pigpio
@@ -17,8 +19,9 @@ import pigpio
 from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, big_step, long_press_threshold, server_ip_override, video_encoding
 
 
-last_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
+current_click = -1
 pressed_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
+curr_pressed_arrows = {"up": False, "down": False, "left": False, "right": False}
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
 
 # Create a Socket.IO server
@@ -26,47 +29,6 @@ sio = socketio.AsyncServer(async_mode='aiohttp',
                                    maxHttpBufferSize=MAX_BUFFER_SIZE, async_handlers=True)
 app = web.Application()
 
-
-def list_ports():
-    """
-    Test the ports and returns a tuple with the available ports and the ones that are working.
-    """
-    non_working_ports = []
-    dev_port = 0
-    working_ports = []
-    available_ports = []
-    while len(non_working_ports) < 6: # if there are more than 5 non working ports stop the testing.
-        camera = cv2.VideoCapture(dev_port)
-        if not camera.isOpened():
-            non_working_ports.append(dev_port)
-            print("Port %s is not working." %dev_port)
-        else:
-            is_reading, img = camera.read()
-            w = camera.get(3)
-            h = camera.get(4)
-            if is_reading:
-                print("Port %s is working and reads images (%s x %s)" %(dev_port,h,w))
-                working_ports.append(dev_port)
-            else:
-                print("Port %s for camera ( %s x %s) is present but does not reads." %(dev_port,h,w))
-                available_ports.append(dev_port)
-        dev_port +=1
-    return available_ports,working_ports,non_working_ports
-
-
-# cv2 Video capture
-def init_camera(camera_index, resolution):
-    capture = cv2.VideoCapture(camera_index)
-    capture.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0])
-    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
-
-    return capture
-
-
-system_cameras = list_ports()[1]
-
-capture = init_camera(camera_index, resolution)
-encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), video_encoding]
 
 # Servo options
 # [vertical, horizontal]
@@ -88,55 +50,62 @@ def current_ms_time():
     return round(time.time() * 1000)
 
 
-def up(pressed):
-    if pressed == "1" and (current_ms_time() - last_ms["up"]) > spill_threshold:
-        delta[0] = -0.5
-        pressed_ms["up"] = current_ms_time()
-    elif pressed == "0":
-        if current_ms_time() - pressed_ms["up"] < long_press_threshold:
-            pos[0] -= big_step[0]
+def pressed_cnt():
+    return curr_pressed_arrows["up"] + curr_pressed_arrows["down"] + curr_pressed_arrows["left"] + curr_pressed_arrows["right"]
 
-        delta[0] = 0
-        last_ms["up"] = current_ms_time()
+
+def up(pressed):
+    if pressed:
+        curr_pressed_arrows["up"] = True
+        delta[0] = -0.5
+    else:
+        curr_pressed_arrows["up"] = False
+        # if current_ms_time() - pressed_ms["up"] < long_press_threshold:
+        #     pos[0] -= big_step[0]
+
+        if not curr_pressed_arrows["down"]:
+            delta[0] = 0
 
 def down(pressed):
-    if pressed == "1" and (current_ms_time() - last_ms["down"]) > spill_threshold:
+    if pressed:
+        curr_pressed_arrows["down"] = True
         delta[0] = 0.5
-        pressed_ms["down"] = current_ms_time()
-    elif pressed == "0":
-        if current_ms_time() - pressed_ms["down"] < long_press_threshold:
-            pos[0] += big_step[0]
+    else:
+        curr_pressed_arrows["down"] = False
+        # if current_ms_time() - pressed_ms["down"] < long_press_threshold:
+        #     pos[0] += big_step[0]
 
-        delta[0] = 0
-        last_ms["down"] = current_ms_time()
+        if not curr_pressed_arrows["up"]:
+            delta[0] = 0
 
 def left(pressed):
-    if pressed == "1" and (current_ms_time() - last_ms["left"]) > spill_threshold:
+    if pressed:
+        curr_pressed_arrows["left"] = True
         delta[1] = -0.5
-        pressed_ms["left"] = current_ms_time()
-    elif pressed == "0":
-        if current_ms_time() - pressed_ms["left"] < long_press_threshold:
-            pos[1] += big_step[1]
+    else:
+        curr_pressed_arrows["left"] = False
+        # if current_ms_time() - pressed_ms["left"] < long_press_threshold:
+        #     pos[1] += big_step[1]
 
-        delta[1] = 0
-        last_ms["left"] = current_ms_time()
+        if not curr_pressed_arrows["right"]:
+            delta[1] = 0
 
 def right(pressed):
-    if pressed == "1" and (current_ms_time() - last_ms["right"]) > spill_threshold:
+    if pressed:
+        curr_pressed_arrows["right"] = True
         delta[1] = 0.5
-        pressed_ms["right"] = current_ms_time()
-    elif pressed == "0":
-        if current_ms_time() - pressed_ms["right"] < long_press_threshold:
-            pos[1] -= big_step[1]
+    else:
+        curr_pressed_arrows["right"] = False
+        # if current_ms_time() - pressed_ms["right"] < long_press_threshold:
+        #     pos[1] -= big_step[1]
 
-        delta[1] = 0
-        last_ms["right"] = current_ms_time()
+        if not curr_pressed_arrows["left"]:
+            delta[1] = 0
 
 
-# Use http for servo controls and socketio channel for streaming only
-async def handle_up(request):
-    pressed = request.match_info.get('pressed', "none")
-
+# Use separate socket for servo controls and socketio channel for streaming only
+@sio.on("up")
+async def handle_up(sio, pressed):
     if axis_movements[0]:
         if mirror_control_axis[0]:
             down(pressed)
@@ -146,9 +115,8 @@ async def handle_up(request):
     return web.Response(text="ok")
 
 
-async def handle_down(request):
-    pressed = request.match_info.get('pressed', "none")
-
+@sio.on("down")
+async def handle_down(sio, pressed):
     if axis_movements[0]:
         if mirror_control_axis[0]:
             up(pressed)
@@ -158,9 +126,8 @@ async def handle_down(request):
     return web.Response(text="ok")
 
 
-async def handle_left(request):
-    pressed = request.match_info.get('pressed', "none")
-
+@sio.on("left")
+async def handle_left(sio, pressed):
     if axis_movements[1]:
         if mirror_control_axis[1]:
             right(pressed)
@@ -170,9 +137,8 @@ async def handle_left(request):
     return web.Response(text="ok")
 
 
-async def handle_right(request):
-    pressed = request.match_info.get('pressed', "none")
-
+@sio.on("right")
+async def handle_right(sio, pressed):
     if axis_movements[1]:
         if mirror_control_axis[1]:
             left(pressed)
@@ -182,33 +148,37 @@ async def handle_right(request):
     return web.Response(text="ok")
 
 
-async def handle_move(request):
-    dx = [0, float(request.match_info.get('dx', "none"))][axis_movements[0]]
-    dy = [0, float(request.match_info.get('dy', "none"))][axis_movements[1]]
-
+@sio.on("move")
+async def move(sio, dx, dy):
     if mirror_control_axis[0]:
         dx = -dx
     if mirror_control_axis[1]:
         dy = -dy
 
-    if (current_ms_time() - last_ms["stop"]) > spill_threshold:
-        if control_mode == "joystick":
-            delta[0] = dx
-            delta[1] = dy
-        else:
-            pos[0] = min(limits[0][1], max(limits[0][0], pos[0] + dx * step[0]))  # Vertical
-            pos[1] = min(limits[0][1], max(limits[0][0], pos[1] - dy * step[1]))  # Horizontal
+    if control_mode == "joystick":
+        delta[0] = dx
+        delta[1] = dy
+    elif control_mode == "drag":
+        pos[0] = min(limits[0][1], max(limits[0][0], pos[0] + dx * step[0]))  # Vertical
+        pos[1] = min(limits[0][1], max(limits[0][0], pos[1] - dy * step[1]))  # Horizontal
 
 
-async def handle_stop(request):
-    last_ms["stop"] = current_ms_time()
+@sio.on("stop")
+async def stop(sio):
     delta[0] = 0
     delta[1] = 0
 
 
-async def handle_reset(request):
+@sio.on("reset")
+async def reset(sio):
     pos[0] = starting_angles[0]
     pos[1] = starting_angles[1]
+
+
+@sio.on("set_pos")
+async def set_pos(sio, x, y):
+    pos[0] = x
+    pos[1] = y
 
 
 async def handle_options_get(request):
@@ -230,12 +200,7 @@ async def handle_options_get(request):
     return web.json_response(dictionary)
 
 
-async def handle_get_cameras(request):
-    return web.json_response(system_cameras)
-
-
 async def handle_restart(request):
-    capture.release()
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 
@@ -245,14 +210,6 @@ async def handle_poweroff(request):
 
 async def handle_get_pos(request):
     return web.json_response({"vert": pos[0], "hor": pos[1]})
-
-
-async def handle_set_pos(request):
-    x = int(request.match_info.get('x', "none"))
-    y = int(request.match_info.get('y', "none"))
-
-    pos[0] = x
-    pos[1] = y
 
 
 async def handle_options_set(request):
@@ -280,21 +237,7 @@ async def handle_options_set(request):
 
 
     # Update on the go
-    if option == "camera_index":
-        capture.release()
-        camera_index = value
-        capture = init_camera(camera_index, resolution)
-
-    elif option == "resolution":
-        capture.release()
-        resolution[0] = value[0]
-        resolution[1] = value[1]
-        capture = init_camera(camera_index, resolution)
-
-    elif option == "video_encoding":
-        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), value]
-
-    elif option == "starting_angles":
+    if option == "starting_angles":
         pos[0] = value[0]
         pos[1] = value[1]
 
@@ -304,10 +247,6 @@ async def handle_options_set(request):
 
     elif option == "control_mode":
         control_mode = value
-
-    elif option == "mirror_video_axis":
-        mirror_video_axis[0] = value[0]
-        mirror_video_axis[1] = value[1]
 
     elif option == "mirror_control_axis":
         mirror_control_axis[0] = value[0]
@@ -322,25 +261,47 @@ async def handle_options_set(request):
         big_step[1] = value[1]
 
 
-# Handle arrow presses
-app.router.add_post('/up_{pressed}', handle_up)
-app.router.add_post('/down_{pressed}', handle_down)
-app.router.add_post('/left_{pressed}', handle_left)
-app.router.add_post('/right_{pressed}', handle_right)
+# @asyncio.coroutine
+async def handler(request):
+    return web.Response(
+        text="Hello!",
+        headers={
+            "X-Custom-Server-Header": "Custom data",
+        })
 
-app.router.add_post('/move_{dx}_{dy}', handle_move)
-app.router.add_post('/stop', handle_stop)
-app.router.add_post('/reset', handle_reset)
 
-app.router.add_get('/available_cameras', handle_get_cameras)
+# Handle interactions with options
 app.router.add_get('/get_pos', handle_get_pos)
-app.router.add_post('/set_pos_{x}_{y}', handle_set_pos)
 
 app.router.add_post('/restart', handle_restart)
 app.router.add_post('/poweroff', handle_poweroff)
 
 app.router.add_get('/options', handle_options_get)
 app.router.add_post('/change-{option}-{value}', handle_options_set)
+
+# cors = aiohttp_cors.setup(app)
+
+# resource = cors.add(app.router.add_resource("/"))
+# route = cors.add(
+#     resource.add_route("GET", handler), {
+#         "http://192.168.1.159:9003": aiohttp_cors.ResourceOptions(
+#             allow_credentials=True,
+#             expose_headers=("X-Custom-Server-Header",),
+#             allow_headers=("X-Requested-With", "Content-Type"),
+#             max_age=3600,
+#         )
+#     })
+
+cors = aiohttp_cors.setup(app, defaults={
+    "*": aiohttp_cors.ResourceOptions(
+        allow_credentials=True,
+        expose_headers="*",
+        allow_headers="*"
+    )
+})
+
+for route in list(app.router.routes()):
+    cors.add(route)
 
 sio.attach(app)
 
@@ -351,41 +312,8 @@ async def index(request):
         return web.Response(text=f.read(), content_type='text/html')
 
 
-app.router.add_static('/static', 'static')
-app.router.add_get('/', index)
-
-
-@sio.on("move")
-async def move(sio, dx, dy):
-    delta[0] = dx
-    delta[1] = dy
-
-@sio.on("stop")
-async def stop(sio):
-    delta[0] = 0
-    delta[1] = 0
-
-@sio.on("reset")
-async def reset(sio):
-    pos[0] = starting_angles[0]
-    pos[1] = starting_angles[1]
-
-
-async def send_images():
-    while True:
-        grabbed, frame = capture.read()
-        if not grabbed:
-            break
-
-        for axis in [0, 1]:
-            if mirror_video_axis[axis]:
-                frame = cv2.flip(frame, axis)
-
-        _, image = cv2.imencode('.jpg', frame, encode_param)
-        converted = base64.b64encode(image)
-        await sio.emit('image', str(converted)[2:-1])
-
-        await sio.sleep(0.01)
+app.router.add_static('/static', 'static')  # Route static files
+app.router.add_get('/', index)  # Index page
 
 
 async def move_camera():
@@ -400,7 +328,6 @@ async def move_camera():
 
 
 async def init_app():
-    sio.start_background_task(send_images)
     sio.start_background_task(move_camera)
     return app
 
@@ -420,7 +347,8 @@ if __name__ == "__main__":
         if machine_ip != "":
             with open("static/ip.js", "w") as f:
                 if server_ip_override == "":
-                    f.write(f'var server_address = "http://{machine_ip}:{port}";')
+                    f.writelines([f'var control_address = "http://{machine_ip}:{port}";\n',
+                        f'var video_address = "http://{machine_ip}:{port + 1}";'])
                 else:
                     f.write(f'var server_address = "{server_ip_override}";')
 
@@ -431,5 +359,4 @@ if __name__ == "__main__":
 
 
     web.run_app(init_app(), host=machine_ip, port=port)
-    capture.release()
 

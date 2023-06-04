@@ -18,7 +18,6 @@ video_encoding = 80
 resolution = [1280, 720]  # Width, height
 
 # Control
-spill_threshold = 100  # Amount of time that is counted as error in http requests (ms)
 long_press_threshold = 300
 control_mode = "drag"  # Either "joystick" or "drag"
 mirror_video_axis = [False, False]
