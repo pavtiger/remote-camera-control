@@ -3,7 +3,6 @@ import argparse
 import base64
 import json
 
-import uvicorn
 import socketio
 from aiohttp import web
 import aiohttp_cors
@@ -48,7 +47,7 @@ def list_ports():
             non_working_ports.append(dev_port)
             print("Port %s is not working." %dev_port)
         else:
-            is_reading, img = camera.read()
+            is_reading, _ = camera.read()
             w = camera.get(3)
             h = camera.get(4)
             if is_reading:
@@ -82,7 +81,7 @@ async def handle_get_cameras(request):
 
 @sio.on("options")
 async def handle_options_set(request, option, value):
-    global capture, control_mode, camera_index, resolution, encode_param
+    global capture, camera_index, resolution, encode_param
     # value = json.loads(value)
 
     # Save updated option to config.py
@@ -93,7 +92,7 @@ async def handle_options_set(request, option, value):
         sp = line.split("=")
         if len(sp) < 2: continue
 
-        key, val = sp[0].strip(), sp[1].strip()
+        key = sp[0].strip()
 
         if key == option:
             lines[i] = f"{option} = {repr(value)}\n"
@@ -175,6 +174,6 @@ async def init_app():
 
 if __name__ == "__main__":
     eventlet.monkey_patch()
-    web.run_app(init_app(), host="192.168.1.159", port=9003)
+    web.run_app(init_app(), host=args["ip"], port=args["port"])
     capture.release()
 

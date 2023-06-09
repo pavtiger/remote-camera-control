@@ -1,14 +1,11 @@
-import cv2
 import os
 import sys
 import json
 import time
-import base64
 import subprocess
 from copy import deepcopy
 from multidict import MultiDict
 
-import asyncio
 import socketio
 from aiohttp import web
 import aiohttp_cors
@@ -16,7 +13,7 @@ import eventlet
 
 import pigpio
 
-from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, spill_threshold, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, big_step, long_press_threshold, server_ip_override, video_encoding
+from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, big_step, long_press_threshold, server_ip_override, video_encoding
 
 
 current_click = -1
@@ -227,7 +224,7 @@ async def handle_options_set(request):
         sp = line.split("=")
         if len(sp) < 2: continue
 
-        key, val = sp[0].strip(), sp[1].strip()
+        key = sp[0].strip()
 
         if key == option:
             lines[i] = f"{option} = {repr(value)}\n"

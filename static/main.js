@@ -24,8 +24,8 @@ const max_move_dist = 300;
 let mouse_down = false;
 let mouse_click_pos = [];
 let mouse_pos = [];
-pressed = {"up": false, "down": false, "left": false, "right": false}
-document.getElementById('image').setAttribute('draggable', false);
+let pressed = { "up": false, "down": false, "left": false, "right": false }
+document.getElementById("image").setAttribute("draggable", false);
 
 const control_socket = io.connect(control_address);
 const video_socket = io.connect(video_address);
