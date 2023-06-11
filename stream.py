@@ -82,7 +82,8 @@ async def handle_get_cameras(request):
 @sio.on("options")
 async def handle_options_set(request, option, value):
     global capture, camera_index, resolution, encode_param
-    # value = json.loads(value)
+    if option == "resolution":
+        value = json.loads(value)
 
     # Save updated option to config.py
     with open("config.py", 'r') as file:
@@ -109,7 +110,6 @@ async def handle_options_set(request, option, value):
 
     elif option == "resolution":
         capture.release()
-        value = json.loads(value)
         resolution[0] = value[0]
         resolution[1] = value[1]
         capture = init_camera(camera_index, resolution)
@@ -122,19 +122,7 @@ async def handle_options_set(request, option, value):
         mirror_video_axis[1] = value[1]
 
 
-# resource = cors.add(app.router.add_resource("/available_cameras"))
-# route = cors.add(
-#     resource.add_route("GET", handler), {
-#         "http://192.168.1.150:9002": aiohttp_cors.ResourceOptions(
-#             allow_credentials=True,
-#             expose_headers=("X-Custom-Server-Header",),
-#             allow_headers=("X-Requested-With", "Content-Type"),
-#             max_age=3600,
-#         )
-#     }
-
 app.router.add_get('/available_cameras', handle_get_cameras)
-# app.router.add_post('/change-{option}-{value}', handle_options_set)
 
 cors = aiohttp_cors.setup(app, defaults={
     "*": aiohttp_cors.ResourceOptions(

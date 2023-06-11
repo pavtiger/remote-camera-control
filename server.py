@@ -13,7 +13,7 @@ import eventlet
 
 import pigpio
 
-from config import interface, port, servo_pins, starting_angles, camera_index, resolution, step, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, big_step, long_press_threshold, server_ip_override, video_encoding
+from config import interface, port, servo_pins, starting_angles, mouse_sensitivity, keyboard_sensitivity, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, long_press_threshold, server_ip_override
 
 
 current_click = -1
@@ -54,7 +54,7 @@ def pressed_cnt():
 def up(pressed):
     if pressed:
         curr_pressed_arrows["up"] = True
-        delta[0] = -0.5
+        delta[0] = -keyboard_sensitivity
     else:
         curr_pressed_arrows["up"] = False
         # if current_ms_time() - pressed_ms["up"] < long_press_threshold:
@@ -66,7 +66,7 @@ def up(pressed):
 def down(pressed):
     if pressed:
         curr_pressed_arrows["down"] = True
-        delta[0] = 0.5
+        delta[0] = keyboard_sensitivity
     else:
         curr_pressed_arrows["down"] = False
         # if current_ms_time() - pressed_ms["down"] < long_press_threshold:
@@ -78,7 +78,7 @@ def down(pressed):
 def left(pressed):
     if pressed:
         curr_pressed_arrows["left"] = True
-        delta[1] = -0.5
+        delta[1] = -keyboard_sensitivity
     else:
         curr_pressed_arrows["left"] = False
         # if current_ms_time() - pressed_ms["left"] < long_press_threshold:
@@ -90,7 +90,7 @@ def left(pressed):
 def right(pressed):
     if pressed:
         curr_pressed_arrows["right"] = True
-        delta[1] = 0.5
+        delta[1] = keyboard_sensitivity
     else:
         curr_pressed_arrows["right"] = False
         # if current_ms_time() - pressed_ms["right"] < long_press_threshold:
@@ -153,11 +153,11 @@ async def move(sio, dx, dy):
         dy = -dy
 
     if control_mode == "joystick":
-        delta[0] = dx
-        delta[1] = dy
+        delta[0] = dx * mouse_sensitivity
+        delta[1] = dy * mouse_sensitivity
     elif control_mode == "drag":
-        pos[0] = min(limits[0][1], max(limits[0][0], pos[0] + dx * step[0]))  # Vertical
-        pos[1] = min(limits[0][1], max(limits[0][0], pos[1] - dy * step[1]))  # Horizontal
+        pos[0] = min(limits[0][1], max(limits[0][0], pos[0] + dx * mouse_sensitivity))  # Vertical
+        pos[1] = min(limits[0][1], max(limits[0][0], pos[1] - dy * mouse_sensitivity))  # Horizontal
 
 
 @sio.on("stop")
@@ -178,21 +178,18 @@ async def set_pos(sio, x, y):
     pos[1] = y
 
 
-async def handle_options_get(request):
-    dictionary = {
-        'servo_pins': servo_pins,
-        'starting_angles': starting_angles,
-        'limits': limits,
-        'step': step,
-        'big_step': big_step,
-        'camera_index': camera_index,
-        'resolution': resolution,
-        'video_encoding': video_encoding,
-        'control_mode': control_mode,
-        'mirror_video_axis': mirror_video_axis,
-        'mirror_control_axis': mirror_control_axis,
-        'axis_movements': axis_movements,
-    }
+async def handle_options_get(request):  # Gives options about both streaming server and control server (from config.py)
+    dictionary = {}
+    with open("config.py", 'r') as file:
+        lines = file.readlines()
+
+    for i, line in enumerate(lines):
+        sp = line.split("=")
+        if len(sp) < 2: continue
+
+        key, value = sp[0].strip(), sp[1].split("  #")[0].strip().replace("True", "true").replace("False", "false")
+        value = json.loads(value)
+        dictionary[key] = value
 
     return web.json_response(dictionary)
 
@@ -206,7 +203,7 @@ async def handle_poweroff(request):
 
 
 async def handle_options_set(request):
-    global capture, control_mode, camera_index, resolution, encode_param
+    global capture, control_mode, camera_index, resolution, encode_param, mouse_sensitivity, keyboard_sensitivity
 
     option = request.match_info.get('option', "none")
     value = request.match_info.get('value', "none")
@@ -234,9 +231,11 @@ async def handle_options_set(request):
         pos[0] = value[0]
         pos[1] = value[1]
 
-    elif option == "step":
-        step[0] = value[0]
-        step[1] = value[1]
+    elif option == "mouse_sensitivity":
+        mouse_sensitivity = value
+
+    elif option == "keyboard_sensitivity":
+        keyboard_sensitivity = value
 
     elif option == "control_mode":
         control_mode = value
@@ -248,10 +247,6 @@ async def handle_options_set(request):
     elif option == "axis_movements":
         axis_movements[0] = value[0]
         axis_movements[1] = value[1]
-
-    elif option == "big_step":
-        big_step[0] = value[0]
-        big_step[1] = value[1]
 
 
 # @asyncio.coroutine
@@ -297,8 +292,8 @@ app.router.add_get('/', index)  # Index page
 
 async def move_camera():
     while True:
-        pos[0] = min(2500, max(500, pos[0] + delta[0] * step[0]))  # Vertical
-        pos[1] = min(2500, max(500, pos[1] - delta[1] * step[1]))  # Horizontal
+        pos[0] = min(2500, max(500, pos[0] + delta[0]))  # Vertical
+        pos[1] = min(2500, max(500, pos[1] - delta[1]))  # Horizontal
 
         pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
         pwm.set_servo_pulsewidth(servo_pins[1], pos[1])

@@ -10,8 +10,8 @@ cors_allowed_origins = ['http://192.168.1.159:9002', 'http://192.168.1.159:9003'
 servo_pins = [27, 17]
 starting_angles = [1000, 1500]
 limits = [[500, 2500], [500, 2500]]  # Servo values in range [500, 2500]
-step = [10, 10]  # Step distance for each moment (constant)
-big_step = [50, 50]
+mouse_sensitivity = 7 
+keyboard_sensitivity = 13
 
 # Video
 camera_index = 0

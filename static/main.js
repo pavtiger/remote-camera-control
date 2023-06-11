@@ -55,10 +55,8 @@ const Options = function () {
     this.limits_hor_start = this.options["limits"][1][0];
     this.limits_hor_end = this.options["limits"][1][1];
 
-    this.step_vert = this.options["step"][0];
-    this.step_hor = this.options["step"][1];
-    this.big_step_vert = this.options["big_step"][0];
-    this.big_step_hor = this.options["big_step"][1];
+    this.mouse_sensitivity = this.options["mouse_sensitivity"];
+    this.keyboard_sensitivity = this.options["keyboard_sensitivity"];
 
     this.camera_index = this.options["camera_index"];
     this.resolution = "[" + this.options["resolution"][0] + ", " + this.options["resolution"][1] + "]";
@@ -153,27 +151,19 @@ gStartingAnglesHor.onChange(function(value) {
 
 
 let fStep = gui.addFolder("Sensitivity (step distances)");
-let gPanVert = fStep.add(opt, "step_vert", 1, 30).name("Vertical Pan");
-gPanVert.onChange(function(value) {
-    HTTP.open("POST", control_address + "/change-step-[" + Math.round(value.toString()) + ", " + Math.round(opt.step_hor) + "]");
-    HTTP.send();
-});
-let gPanHor = fStep.add(opt, "step_hor", 1, 30).name("Horizontal Pan");
-gPanHor.onChange(function(value) {
-    HTTP.open("POST", control_address + "/change-step-[" + Math.round(opt.step_vert) + ", " + Math.round(value.toString()) + "]");
+let gMouseSen = fStep.add(opt, "mouse_sensitivity", 1, 30).name("Mouse sensitivity");
+gMouseSen.onChange(function(value) {
+    HTTP.open("POST", control_address + "/change-mouse_sensitivity-" + Math.round(value).toString());
     HTTP.send();
 });
 
-let gStepVert = fStep.add(opt, "big_step_vert", 0, 200).name("Vertical Step");
-gStepVert.onChange(function(value) {
-    HTTP.open("POST", control_address + "/change-big_step-[" + Math.round(value.toString()) + ", " + Math.round(opt.big_step_hor) + "]");
+let gKeySen = fStep.add(opt, "keyboard_sensitivity", 1, 30).name("Keyboard sensitivity");
+gKeySen.onChange(function(value) {
+    HTTP.open("POST", control_address + "/change-keyboard_sensitivity-" + Math.round(value).toString());
     HTTP.send();
 });
-let gStepHor = fStep.add(opt, "big_step_hor", 0, 200).name("Horizontal Step");
-gStepHor.onChange(function(value) {
-    HTTP.open("POST", control_address + "/change-big_step-[" + Math.round(opt.big_step_vert) + ", " + Math.round(value.toString()) + "]");
-    HTTP.send();
-});
+
+fStep.open();
 
 
 let fVideo = gui.addFolder("Video settings");
@@ -251,9 +241,7 @@ control_socket.on("update_pos", (pos) => {
 // Key down events
 document.addEventListener("keydown", onDocumentKeyDown, false);
 function onDocumentKeyDown(event) {
-    // if (event.repeat) { return }
-    console.log("pressed");
-
+    if (event.repeat) { return }
     if (event.which === 37) {  // Left
         if (!pressed["left"]) {
             control_socket.emit("left", true);
