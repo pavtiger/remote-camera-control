@@ -187,7 +187,7 @@ async def handle_options_get(request):  # Gives options about both streaming ser
         sp = line.split("=")
         if len(sp) < 2: continue
 
-        key, value = sp[0].strip(), sp[1].split("  #")[0].strip().replace("True", "true").replace("False", "false")
+        key, value = sp[0].strip(), sp[1].split("  #")[0].strip().replace("True", "true").replace("False", "false").replace("'", '"')
         value = json.loads(value)
         dictionary[key] = value
 
@@ -220,7 +220,8 @@ async def handle_options_set(request):
         key = sp[0].strip()
 
         if key == option:
-            lines[i] = f"{option} = {repr(value)}\n"
+            new_val = repr(value).replace("'", '"')
+            lines[i] = f"{option} = {new_val}\n"
 
     with open("config.py", "w") as file:
         file.writelines(lines)

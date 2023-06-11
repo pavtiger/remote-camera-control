@@ -1,4 +1,5 @@
 # All options that apply to both axis are in order: [vertical, horizontal]
+# And all quotes should be dublequote
 
 # Networking
 interface = "wlan0"
