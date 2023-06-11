@@ -41,9 +41,8 @@ const Options = function () {
     // Retrieve options from server
     this.options = httpGet(control_address + "/options");
 
-    let pos = httpGet(control_address + "/get_pos");
-    this.pos_vert = parseInt(pos["vert"], 10);
-    this.pos_hor = parseInt(pos["hor"], 10);
+    this.pos_vert = 0;
+    this.pos_hor = 0;
 
     this.servo_pins_vert = this.options["servo_pins"][0];
     this.servo_pins_hor = this.options["servo_pins"][1];
@@ -134,23 +133,23 @@ fServoPins.add(opt, "restart").name("Apply");
 gui.add(opt, "flip_axis").name("Flip axis");
 
 
-// let fStartingAngles = gui.addFolder("Servo starting angles");
-// let gStartingAnglesVert = fStartingAngles.add(opt, "starting_angles_vert", 500, 2500).name("Vertical");
-// gStartingAnglesVert.onChange(function(value) {
-//     HTTP.open("POST", control_address + "/change-starting_angles-[" + Math.round(value).toString() + ", " + Math.round(opt.starting_angles_hor).toString() + "]");
-//     HTTP.send();
-// });
-// let gStartingAnglesHor = fStartingAngles.add(opt, "starting_angles_hor", 500, 2500).name("Horizontal");
-// gStartingAnglesHor.onChange(function(value) {
-//     HTTP.open("POST", control_address + "/change-starting_angles-[" + Math.round(opt.starting_angles_vert).toString() + ", " + Math.round(value).toString() + "]");
-//     HTTP.send();
-// });
+let fStartingAngles = gui.addFolder("Servo starting angles");
+let gStartingAnglesVert = fStartingAngles.add(opt, "starting_angles_vert", 500, 2500).name("Vertical");
+gStartingAnglesVert.onChange(function(value) {
+    HTTP.open("POST", control_address + "/change-starting_angles-[" + Math.round(value).toString() + ", " + Math.round(opt.starting_angles_hor).toString() + "]");
+    HTTP.send();
+});
+let gStartingAnglesHor = fStartingAngles.add(opt, "starting_angles_hor", 500, 2500).name("Horizontal");
+gStartingAnglesHor.onChange(function(value) {
+    HTTP.open("POST", control_address + "/change-starting_angles-[" + Math.round(opt.starting_angles_vert).toString() + ", " + Math.round(value).toString() + "]");
+    HTTP.send();
+});
 
-let fLimits = gui.addFolder("Servo limits on each axis");
-let gLimitsVertStart = fLimits.add(opt, "limits_vert_start", 500, 2500).name("Vertical start");
-let gLimitsVertEnd = fLimits.add(opt, "limits_vert_end", 500, 2500).name("Vertical end");
-let gLimitsHorStart = fLimits.add(opt, "limits_hor_start", 500, 2500).name("Horizontal start");
-let gLimitsHorEnd = fLimits.add(opt, "limits_hor_end", 500, 2500).name("Horizontal end");
+// let fLimits = gui.addFolder("Servo limits on each axis");
+// let gLimitsVertStart = fLimits.add(opt, "limits_vert_start", 500, 2500).name("Vertical start");
+// let gLimitsVertEnd = fLimits.add(opt, "limits_vert_end", 500, 2500).name("Vertical end");
+// let gLimitsHorStart = fLimits.add(opt, "limits_hor_start", 500, 2500).name("Horizontal start");
+// let gLimitsHorEnd = fLimits.add(opt, "limits_hor_end", 500, 2500).name("Horizontal end");
 
 
 let fStep = gui.addFolder("Servo step distances");
@@ -241,13 +240,12 @@ gui.add(opt, "restart").name("Restart server");
 let fPoweroff = gui.addFolder("Shutdown machine");
 fPoweroff.add(opt, "poweroff").name("Shutdown machine");
 
-// Update current position every second
-setInterval(updatePos, 100);
-function updatePos() {
-    let pos = httpGet(control_address + "/get_pos");
-    opt.pos_vert = parseInt(pos["vert"], 10);
-    opt.pos_hor = parseInt(pos["hor"], 10);
-}
+
+// Update current position when recieved from server
+control_socket.on("update_pos", (pos) => {
+    opt.pos_vert = parseInt(pos[0], 10);
+    opt.pos_hor = parseInt(pos[1], 10);
+});
 
 
 // Key down events
@@ -314,7 +312,6 @@ $("body").mousemove(function (e) {
 })
 
 $('body').on('mousedown', function(event) {
-    console.log("mousedown");
     let option_elem = document.getElementsByClassName("dg main a")[0];
     if (option_elem.contains(event.target)) {
         return;  // This click is inside of options menu

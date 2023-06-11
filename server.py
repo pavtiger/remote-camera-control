@@ -205,10 +205,6 @@ async def handle_poweroff(request):
     os.system("sudo poweroff")
 
 
-async def handle_get_pos(request):
-    return web.json_response({"vert": pos[0], "hor": pos[1]})
-
-
 async def handle_options_set(request):
     global capture, control_mode, camera_index, resolution, encode_param
 
@@ -268,26 +264,12 @@ async def handler(request):
 
 
 # Handle interactions with options
-app.router.add_get('/get_pos', handle_get_pos)
-
 app.router.add_post('/restart', handle_restart)
 app.router.add_post('/poweroff', handle_poweroff)
 
 app.router.add_get('/options', handle_options_get)
 app.router.add_post('/change-{option}-{value}', handle_options_set)
 
-# cors = aiohttp_cors.setup(app)
-
-# resource = cors.add(app.router.add_resource("/"))
-# route = cors.add(
-#     resource.add_route("GET", handler), {
-#         "http://192.168.1.159:9003": aiohttp_cors.ResourceOptions(
-#             allow_credentials=True,
-#             expose_headers=("X-Custom-Server-Header",),
-#             allow_headers=("X-Requested-With", "Content-Type"),
-#             max_age=3600,
-#         )
-#     })
 
 cors = aiohttp_cors.setup(app, defaults={
     "*": aiohttp_cors.ResourceOptions(
@@ -324,8 +306,15 @@ async def move_camera():
         await sio.sleep(0.01)
 
 
+async def send_pos():
+    while True:
+        await sio.emit("update_pos", pos)
+        await sio.sleep(0.5)
+
+
 async def init_app():
     sio.start_background_task(move_camera)
+    sio.start_background_task(send_pos)
     return app
 
 
