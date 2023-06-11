@@ -22,7 +22,7 @@ function sleep(ms) {
 
 const max_move_dist = 300;
 let mouse_down = false;
-let mouse_click_pos = [];
+let mouse_click_pos = [], last_mouse_pos = [];
 let mouse_pos = [];
 let pressed = { "up": false, "down": false, "left": false, "right": false }
 document.getElementById("image").setAttribute("draggable", false);
@@ -152,13 +152,13 @@ gStartingAnglesHor.onChange(function(value) {
 // let gLimitsHorEnd = fLimits.add(opt, "limits_hor_end", 500, 2500).name("Horizontal end");
 
 
-let fStep = gui.addFolder("Servo step distances");
-let gPanVert = fStep.add(opt, "step_vert", 0, 30).name("Vertical Pan");
+let fStep = gui.addFolder("Sensitivity (step distances)");
+let gPanVert = fStep.add(opt, "step_vert", 1, 30).name("Vertical Pan");
 gPanVert.onChange(function(value) {
     HTTP.open("POST", control_address + "/change-step-[" + Math.round(value.toString()) + ", " + Math.round(opt.step_hor) + "]");
     HTTP.send();
 });
-let gPanHor = fStep.add(opt, "step_hor", 0, 30).name("Horizontal Pan");
+let gPanHor = fStep.add(opt, "step_hor", 1, 30).name("Horizontal Pan");
 gPanHor.onChange(function(value) {
     HTTP.open("POST", control_address + "/change-step-[" + Math.round(opt.step_vert) + ", " + Math.round(value.toString()) + "]");
     HTTP.send();
@@ -300,15 +300,23 @@ $("body").mousemove(function (e) {
     mouse_pos = [e.pageX, e.pageY];
 
     if (mouse_down) {
-        let dx = mouse_pos[0] - mouse_click_pos[0];
-        let dy = mouse_pos[1] - mouse_click_pos[1];
+        if (opt.control_mode === "joystick") {
+            let dx = mouse_pos[0] - mouse_click_pos[0];
+            let dy = mouse_pos[1] - mouse_click_pos[1];
 
-        let hyp = Math.sqrt(dx * dx + dy * dy);
-        let dx_ratio = Math.min(1, dx / max_move_dist);
-        let dy_ratio = Math.min(1, dy / max_move_dist);
+            let hyp = Math.sqrt(dx * dx + dy * dy);
+            let dx_ratio = Math.min(1, dx / max_move_dist);
+            let dy_ratio = Math.min(1, dy / max_move_dist);
 
-        control_socket.emit("move", dy_ratio, dx_ratio);
+            control_socket.emit("move", dy_ratio, dx_ratio);
+        } else {
+            let dx = mouse_pos[0] - last_mouse_pos[0];
+            let dy = mouse_pos[1] - last_mouse_pos[1];
+
+            control_socket.emit("move", dy, dx);
+        }
     }
+    last_mouse_pos = mouse_pos;
 })
 
 $('body').on('mousedown', function(event) {
