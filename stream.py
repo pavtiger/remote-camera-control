@@ -81,7 +81,7 @@ async def handle_get_cameras(request):
 
 @sio.on("options")
 async def handle_options_set(request, option, value):
-    global capture, camera_index, resolution, encode_param
+    global capture, camera_index, encode_param
     if option == "resolution":
         value = json.loads(value)
 

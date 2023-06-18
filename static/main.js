@@ -22,7 +22,8 @@ function sleep(ms) {
 
 const max_move_dist = 300;
 let mouse_down = false;
-let mouse_click_pos = [], last_mouse_pos = [];
+let mouse_click_pos = [];
+let last_mouse_pos = [];
 let mouse_pos = [];
 let pressed = { "up": false, "down": false, "left": false, "right": false }
 document.getElementById("image").setAttribute("draggable", false);

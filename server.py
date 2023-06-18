@@ -13,13 +13,14 @@ import eventlet
 
 import pigpio
 
-from config import interface, port, servo_pins, starting_angles, mouse_sensitivity, keyboard_sensitivity, control_mode, limits, mirror_video_axis, mirror_control_axis, axis_movements, long_press_threshold, server_ip_override
+from config import interface, port, servo_pins, starting_angles, mouse_sensitivity, keyboard_sensitivity, control_mode, limits, mirror_control_axis, axis_movements, server_ip_override
 
 
 current_click = -1
 pressed_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
 curr_pressed_arrows = {"up": False, "down": False, "left": False, "right": False}
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
+video_streamer = None
 
 # Create a Socket.IO server
 sio = socketio.AsyncServer(async_mode='aiohttp',
@@ -57,8 +58,6 @@ def up(pressed):
         delta[0] = -keyboard_sensitivity
     else:
         curr_pressed_arrows["up"] = False
-        # if current_ms_time() - pressed_ms["up"] < long_press_threshold:
-        #     pos[0] -= big_step[0]
 
         if not curr_pressed_arrows["down"]:
             delta[0] = 0
@@ -69,8 +68,6 @@ def down(pressed):
         delta[0] = keyboard_sensitivity
     else:
         curr_pressed_arrows["down"] = False
-        # if current_ms_time() - pressed_ms["down"] < long_press_threshold:
-        #     pos[0] += big_step[0]
 
         if not curr_pressed_arrows["up"]:
             delta[0] = 0
@@ -81,8 +78,6 @@ def left(pressed):
         delta[1] = -keyboard_sensitivity
     else:
         curr_pressed_arrows["left"] = False
-        # if current_ms_time() - pressed_ms["left"] < long_press_threshold:
-        #     pos[1] += big_step[1]
 
         if not curr_pressed_arrows["right"]:
             delta[1] = 0
@@ -93,8 +88,6 @@ def right(pressed):
         delta[1] = keyboard_sensitivity
     else:
         curr_pressed_arrows["right"] = False
-        # if current_ms_time() - pressed_ms["right"] < long_press_threshold:
-        #     pos[1] -= big_step[1]
 
         if not curr_pressed_arrows["left"]:
             delta[1] = 0
@@ -152,6 +145,11 @@ async def move(sio, dx, dy):
     if mirror_control_axis[1]:
         dy = -dy
 
+    if not axis_movements[0]:
+        dx = 0
+    if not axis_movements[1]:
+        dy = 0
+
     if control_mode == "joystick":
         delta[0] = dx * mouse_sensitivity
         delta[1] = dy * mouse_sensitivity
@@ -183,7 +181,7 @@ async def handle_options_get(request):  # Gives options about both streaming ser
     with open("config.py", 'r') as file:
         lines = file.readlines()
 
-    for i, line in enumerate(lines):
+    for line in lines:
         sp = line.split("=")
         if len(sp) < 2: continue
 
@@ -195,6 +193,7 @@ async def handle_options_get(request):  # Gives options about both streaming ser
 
 
 async def handle_restart(request):
+    video_streamer.kill()
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 
@@ -203,7 +202,7 @@ async def handle_poweroff(request):
 
 
 async def handle_options_set(request):
-    global capture, control_mode, camera_index, resolution, encode_param, mouse_sensitivity, keyboard_sensitivity
+    global control_mode, mouse_sensitivity, keyboard_sensitivity
 
     option = request.match_info.get('option', "none")
     value = request.match_info.get('value', "none")
@@ -339,6 +338,6 @@ if __name__ == "__main__":
 
         time.sleep(3)
 
-
+    video_streamer = subprocess.Popen(['/usr/bin/python3.9', 'stream.py', '--ip', machine_ip, '--port', str(port + 1)])
     web.run_app(init_app(), host=machine_ip, port=port)
 
