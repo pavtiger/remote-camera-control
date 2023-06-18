@@ -162,4 +162,6 @@ cython_debug/
 # Custom
 config.py
 static/ip.js
+server.error
+server.log
 
