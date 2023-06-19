@@ -26,12 +26,31 @@ let mouse_click_pos = [];
 let last_mouse_pos = [];
 let mouse_pos = [];
 let pressed = { "up": false, "down": false, "left": false, "right": false }
+let stop_stream = false;
 document.getElementById("image").setAttribute("draggable", false);
 
 const control_socket = io.connect(control_address);
 const video_socket = io.connect(video_address);
 
 video_socket.on("image", (image) => {
+    if (!stop_stream) {
+        const imageElem = document.getElementById("image");
+        imageElem.src = `data:image/jpeg;base64,${image}`;
+    }
+});
+
+video_socket.on("send_snapshot", (image) => {
+    //let paths = message["paths"]
+    //paths.forEach(function (path) {
+    //    let a = document.createElement("a");
+    //    a.href = path;
+    //    a.download = path.split("/").pop();
+    //    document.body.appendChild(a);
+    //    a.click();
+    //    document.body.removeChild(a);
+    //});
+
+    stop_stream = true;
     const imageElem = document.getElementById("image");
     imageElem.src = `data:image/jpeg;base64,${image}`;
 });
@@ -88,9 +107,12 @@ const Options = function () {
             gui.__controllers[i].updateDisplay();
         }
 
-        console.log(this.servo_pins_vert, this.servo_pins_hor);
         HTTP.open("POST", control_address + "/change-servo_pins-[" + Math.round(this.servo_pins_vert) + ", " + Math.round(this.servo_pins_hor) + "]");
         HTTP.send();
+    }
+
+    this.snapshot = function() {
+        video_socket.emit("snapshot");
     }
 };
 
@@ -175,6 +197,12 @@ gCameraIndex.onChange(function(value) {
     video_socket.emit("options", "camera_index", Math.round(value));
 });
 
+
+let fFunctions = gui.addFolder("Additional functions");
+fFunctions.add(opt, "snapshot").name("Take HQ snapshot");
+fFunctions.open()
+
+
 let gResolutionWidth = fVideo.add(opt, "resolution", ["[320, 240]", "[480, 360]", "[640, 360]", "[640, 480]", "[1056, 594]", "[1280, 720]", "[1920, 1080]"]).name("Video resolution");
 gResolutionWidth.onChange(function(value) {
     video_socket.emit("options", "resolution", value);
@@ -243,7 +271,9 @@ control_socket.on("update_pos", (pos) => {
 document.addEventListener("keydown", onDocumentKeyDown, false);
 function onDocumentKeyDown(event) {
     if (event.repeat) { return }
-    if (event.which === 37) {  // Left
+    if (event.which === 27) {  // Esc
+        stop_stream = false;
+    } else if (event.which === 37) {  // Left
         if (!pressed["left"]) {
             control_socket.emit("left", true);
             pressed["left"] = true;

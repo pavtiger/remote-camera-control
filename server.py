@@ -95,7 +95,7 @@ def right(pressed):
 
 # Use separate socket for servo controls and socketio channel for streaming only
 @sio.on("up")
-async def handle_up(sio, pressed):
+async def handle_up(sid, pressed):
     if axis_movements[0]:
         if mirror_control_axis[0]:
             down(pressed)
@@ -106,7 +106,7 @@ async def handle_up(sio, pressed):
 
 
 @sio.on("down")
-async def handle_down(sio, pressed):
+async def handle_down(sid, pressed):
     if axis_movements[0]:
         if mirror_control_axis[0]:
             up(pressed)
@@ -117,7 +117,7 @@ async def handle_down(sio, pressed):
 
 
 @sio.on("left")
-async def handle_left(sio, pressed):
+async def handle_left(sid, pressed):
     if axis_movements[1]:
         if mirror_control_axis[1]:
             right(pressed)
@@ -128,7 +128,7 @@ async def handle_left(sio, pressed):
 
 
 @sio.on("right")
-async def handle_right(sio, pressed):
+async def handle_right(sid, pressed):
     if axis_movements[1]:
         if mirror_control_axis[1]:
             left(pressed)
@@ -139,7 +139,7 @@ async def handle_right(sio, pressed):
 
 
 @sio.on("move")
-async def move(sio, dx, dy):
+async def move(sid, dx, dy):
     if mirror_control_axis[0]:
         dx = -dx
     if mirror_control_axis[1]:
@@ -159,19 +159,19 @@ async def move(sio, dx, dy):
 
 
 @sio.on("stop")
-async def stop(sio):
+async def stop(sid):
     delta[0] = 0
     delta[1] = 0
 
 
 @sio.on("reset")
-async def reset(sio):
+async def reset(sid):
     pos[0] = starting_angles[0]
     pos[1] = starting_angles[1]
 
 
 @sio.on("set_pos")
-async def set_pos(sio, x, y):
+async def set_pos(sid, x, y):
     pos[0] = x
     pos[1] = y
 
@@ -202,7 +202,7 @@ async def handle_poweroff(request):
 
 
 async def handle_options_set(request):
-    global control_mode, mouse_sensitivity, keyboard_sensitivity
+    global control_mode, mouse_sensitivity, keyboard_sensitivity, pwm
 
     option = request.match_info.get('option', "none")
     value = request.match_info.get('value', "none")
@@ -247,6 +247,21 @@ async def handle_options_set(request):
     elif option == "axis_movements":
         axis_movements[0] = value[0]
         axis_movements[1] = value[1]
+
+    elif option == "servo_pins":
+        servo_pins[0] = value[0]
+        servo_pins[1] = value[1]
+
+        pwm.stop()
+        pwm = pigpio.pi()
+
+        pwm.set_mode(servo_pins[0], pigpio.OUTPUT)
+        pwm.set_PWM_frequency(servo_pins[0], 50)
+        pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
+
+        pwm.set_mode(servo_pins[1], pigpio.OUTPUT)
+        pwm.set_PWM_frequency(servo_pins[1], 50)
+        pwm.set_servo_pulsewidth(servo_pins[1], pos[1])
 
 
 # @asyncio.coroutine
