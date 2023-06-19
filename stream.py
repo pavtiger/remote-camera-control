@@ -87,8 +87,6 @@ async def handle_get_cameras(request):
 
 @sio.on("snapshot")
 async def take_snapshot(sid):
-    global capture
-
     last_snapshot_time = curr_time()
     capture.set(cv2.CAP_PROP_FRAME_WIDTH, hq_resolution[0])
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, hq_resolution[1])

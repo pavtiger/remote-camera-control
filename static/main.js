@@ -19,6 +19,16 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// For todays date;
+Date.prototype.today = function () {
+    return ((this.getDate() < 10)?"0":"") + this.getDate() +"."+(((this.getMonth()+1) < 10)?"0":"") + (this.getMonth()+1) +"."+ this.getFullYear();
+}
+
+// For the time now
+Date.prototype.timeNow = function () {
+     return ((this.getHours() < 10)?"0":"") + this.getHours() +"-"+ ((this.getMinutes() < 10)?"0":"") + this.getMinutes() +"-"+ ((this.getSeconds() < 10)?"0":"") + this.getSeconds();
+}
+
 
 const max_move_dist = 300;
 let mouse_down = false;
@@ -34,25 +44,22 @@ const video_socket = io.connect(video_address);
 
 video_socket.on("image", (image) => {
     if (!stop_stream) {
-        const imageElem = document.getElementById("image");
+        let imageElem = document.getElementById("image");
         imageElem.src = `data:image/jpeg;base64,${image}`;
     }
 });
 
 video_socket.on("send_snapshot", (image) => {
-    //let paths = message["paths"]
-    //paths.forEach(function (path) {
-    //    let a = document.createElement("a");
-    //    a.href = path;
-    //    a.download = path.split("/").pop();
-    //    document.body.appendChild(a);
-    //    a.click();
-    //    document.body.removeChild(a);
-    //});
-
     stop_stream = true;
-    const imageElem = document.getElementById("image");
+    let imageElem = document.getElementById("image");
     imageElem.src = `data:image/jpeg;base64,${image}`;
+
+    // Download base64 image
+    var a = document.createElement("a");  // Create <a>
+    a.href = "data:image/png;base64," + image;  // Image Base64 Goes here
+    a.download = new Date().today() + "_" + new Date().timeNow() + ".png";
+    console.log(new Date().today() + "_" + new Date().timeNow() + ".png");
+    a.click();  // Downloaded file
 });
 document.getElementById("image").ondragstart = function() { return false; };  // Disable image drag
 
