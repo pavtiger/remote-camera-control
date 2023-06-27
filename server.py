@@ -12,11 +12,13 @@ import aiohttp_cors
 import eventlet
 
 import pigpio
+import RPi.GPIO as GPIO
 
 from config import interface, port, servo_pins, starting_angles, mouse_sensitivity, keyboard_sensitivity, control_mode, limits, mirror_control_axis, axis_movements, server_ip_override
 
 
 current_click = -1
+lazer_on_ms = None
 pressed_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
 curr_pressed_arrows = {"up": False, "down": False, "left": False, "right": False}
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
@@ -35,6 +37,7 @@ delta = [0, 0]  # Servo delta at each moment in time in range [-1, 1]
 
 pwm = pigpio.pi()
 
+# Servos
 pwm.set_mode(servo_pins[0], pigpio.OUTPUT)
 pwm.set_PWM_frequency(servo_pins[0], 50)
 pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
@@ -42,6 +45,12 @@ pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
 pwm.set_mode(servo_pins[1], pigpio.OUTPUT)
 pwm.set_PWM_frequency(servo_pins[1], 50)
 pwm.set_servo_pulsewidth(servo_pins[1], pos[1])
+
+# LED/lazer
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+GPIO.setup(18, GPIO.OUT)
+GPIO.output(18, GPIO.LOW)
 
 
 def current_ms_time():
@@ -178,7 +187,14 @@ async def set_pos(sid, x, y):
 
 @sio.on("set_lazer")
 async def set_lazer(sid, state):
-   pass
+    global lazer_on_ms
+
+    if state:
+        lazer_on_ms = current_ms_time()
+        GPIO.output(18, GPIO.HIGH)
+    else:
+        lazer_on_ms = None
+        GPIO.output(18, GPIO.LOW)
 
 
 async def handle_options_get(request):  # Gives options about both streaming server and control server (from config.py)
@@ -324,6 +340,10 @@ async def move_camera():
 async def send_pos():
     while True:
         await sio.emit("update_pos", pos)
+        if lazer_on_ms is not None and (current_ms_time() - lazer_on_ms) > 15000:  # Turn off LED/lazer fter 15 seconds
+            GPIO.output(18, GPIO.LOW)
+            await sio.emit("turn_off_lazer")
+
         await sio.sleep(0.5)
 
 

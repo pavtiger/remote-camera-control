@@ -43,6 +43,10 @@ document.getElementById("image").setAttribute("draggable", false);
 const control_socket = io.connect(control_address);
 const video_socket = io.connect(video_address);
 
+control_socket.on("turn_off_lazer", () => {
+    opt.lazer_on = false;
+});
+
 video_socket.on("image", (image) => {
     if (!stop_stream) {
         let imageElem = document.getElementById("image");
@@ -93,6 +97,7 @@ const Options = function() {
     this.video_encoding = this.options["video_encoding"];
 
     this.download_snapshot = true;
+    this.lazer_on = false;
 
     this.control_mode = this.options["control_mode"];
 
@@ -102,6 +107,7 @@ const Options = function() {
     this.mirror_control_axis_hor = Boolean(this.options["mirror_control_axis"][1]);
     this.axis_movements_vert = Boolean(this.options["axis_movements"][0]);
     this.axis_movements_hor = Boolean(this.options["axis_movements"][1]);
+
 
     this.restart = function() {
         HTTP.open("post", control_address + "/restart");
@@ -213,6 +219,11 @@ gCameraIndex.onChange(function(value) {
 let fFunctions = gui.addFolder("Additional functions");
 fFunctions.add(opt, "snapshot").name("Take HQ snapshot");
 fFunctions.add(opt, "download_snapshot").name("Download snapshot");
+let gLazerOn = fFunctions.add(opt, "lazer_on").name("Turn on/off lazer").listen();
+
+gLazerOn.onChange(function(value) {
+    control_socket.emit("set_lazer", value);
+});
 fFunctions.open()
 
 
