@@ -18,6 +18,7 @@ keyboard_sensitivity = 13
 camera_index = 0
 video_encoding = 80
 resolution = [1280, 720]  # Width, height
+hq_resolution = [1280, 720]  # Width, height. Resolution for snapshots
 
 # Control
 long_press_threshold = 300

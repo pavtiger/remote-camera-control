@@ -12,11 +12,13 @@ import aiohttp_cors
 import eventlet
 
 import pigpio
+import RPi.GPIO as GPIO
 
 from config import interface, port, servo_pins, starting_angles, mouse_sensitivity, keyboard_sensitivity, control_mode, limits, mirror_control_axis, axis_movements, server_ip_override
 
 
 current_click = -1
+lazer_on_ms = None
 pressed_ms = {"stop": 0, "left": 0, "right": 0, "up": 0, "down": 0}  # The last time when a specific button was unpressed
 curr_pressed_arrows = {"up": False, "down": False, "left": False, "right": False}
 MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
@@ -35,6 +37,7 @@ delta = [0, 0]  # Servo delta at each moment in time in range [-1, 1]
 
 pwm = pigpio.pi()
 
+# Servos
 pwm.set_mode(servo_pins[0], pigpio.OUTPUT)
 pwm.set_PWM_frequency(servo_pins[0], 50)
 pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
@@ -42,6 +45,12 @@ pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
 pwm.set_mode(servo_pins[1], pigpio.OUTPUT)
 pwm.set_PWM_frequency(servo_pins[1], 50)
 pwm.set_servo_pulsewidth(servo_pins[1], pos[1])
+
+# LED/lazer
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+GPIO.setup(18, GPIO.OUT)
+GPIO.output(18, GPIO.LOW)
 
 
 def current_ms_time():
@@ -95,7 +104,7 @@ def right(pressed):
 
 # Use separate socket for servo controls and socketio channel for streaming only
 @sio.on("up")
-async def handle_up(sio, pressed):
+async def handle_up(sid, pressed):
     if axis_movements[0]:
         if mirror_control_axis[0]:
             down(pressed)
@@ -106,7 +115,7 @@ async def handle_up(sio, pressed):
 
 
 @sio.on("down")
-async def handle_down(sio, pressed):
+async def handle_down(sid, pressed):
     if axis_movements[0]:
         if mirror_control_axis[0]:
             up(pressed)
@@ -117,7 +126,7 @@ async def handle_down(sio, pressed):
 
 
 @sio.on("left")
-async def handle_left(sio, pressed):
+async def handle_left(sid, pressed):
     if axis_movements[1]:
         if mirror_control_axis[1]:
             right(pressed)
@@ -128,7 +137,7 @@ async def handle_left(sio, pressed):
 
 
 @sio.on("right")
-async def handle_right(sio, pressed):
+async def handle_right(sid, pressed):
     if axis_movements[1]:
         if mirror_control_axis[1]:
             left(pressed)
@@ -139,7 +148,7 @@ async def handle_right(sio, pressed):
 
 
 @sio.on("move")
-async def move(sio, dx, dy):
+async def move(sid, dx, dy):
     if mirror_control_axis[0]:
         dx = -dx
     if mirror_control_axis[1]:
@@ -159,21 +168,33 @@ async def move(sio, dx, dy):
 
 
 @sio.on("stop")
-async def stop(sio):
+async def stop(sid):
     delta[0] = 0
     delta[1] = 0
 
 
 @sio.on("reset")
-async def reset(sio):
+async def reset(sid):
     pos[0] = starting_angles[0]
     pos[1] = starting_angles[1]
 
 
 @sio.on("set_pos")
-async def set_pos(sio, x, y):
+async def set_pos(sid, x, y):
     pos[0] = x
     pos[1] = y
+
+
+@sio.on("set_lazer")
+async def set_lazer(sid, state):
+    global lazer_on_ms
+
+    if state:
+        lazer_on_ms = current_ms_time()
+        GPIO.output(18, GPIO.HIGH)
+    else:
+        lazer_on_ms = None
+        GPIO.output(18, GPIO.LOW)
 
 
 async def handle_options_get(request):  # Gives options about both streaming server and control server (from config.py)
@@ -202,7 +223,7 @@ async def handle_poweroff(request):
 
 
 async def handle_options_set(request):
-    global control_mode, mouse_sensitivity, keyboard_sensitivity
+    global control_mode, mouse_sensitivity, keyboard_sensitivity, pwm
 
     option = request.match_info.get('option', "none")
     value = request.match_info.get('value', "none")
@@ -247,6 +268,21 @@ async def handle_options_set(request):
     elif option == "axis_movements":
         axis_movements[0] = value[0]
         axis_movements[1] = value[1]
+
+    elif option == "servo_pins":
+        servo_pins[0] = value[0]
+        servo_pins[1] = value[1]
+
+        pwm.stop()
+        pwm = pigpio.pi()
+
+        pwm.set_mode(servo_pins[0], pigpio.OUTPUT)
+        pwm.set_PWM_frequency(servo_pins[0], 50)
+        pwm.set_servo_pulsewidth(servo_pins[0], pos[0])
+
+        pwm.set_mode(servo_pins[1], pigpio.OUTPUT)
+        pwm.set_PWM_frequency(servo_pins[1], 50)
+        pwm.set_servo_pulsewidth(servo_pins[1], pos[1])
 
 
 # @asyncio.coroutine
@@ -304,6 +340,10 @@ async def move_camera():
 async def send_pos():
     while True:
         await sio.emit("update_pos", pos)
+        if lazer_on_ms is not None and (current_ms_time() - lazer_on_ms) > 15000:  # Turn off LED/lazer fter 15 seconds
+            GPIO.output(18, GPIO.LOW)
+            await sio.emit("turn_off_lazer")
+
         await sio.sleep(0.5)
 
 

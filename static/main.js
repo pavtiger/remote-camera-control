@@ -19,6 +19,16 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// For todays date;
+Date.prototype.today = function () {
+    return ((this.getDate() < 10)?"0":"") + this.getDate() +"."+(((this.getMonth()+1) < 10)?"0":"") + (this.getMonth()+1) +"."+ this.getFullYear();
+}
+
+// For the time now
+Date.prototype.timeNow = function () {
+     return ((this.getHours() < 10)?"0":"") + this.getHours() +"-"+ ((this.getMinutes() < 10)?"0":"") + this.getMinutes() +"-"+ ((this.getSeconds() < 10)?"0":"") + this.getSeconds();
+}
+
 
 const max_move_dist = 300;
 let mouse_down = false;
@@ -26,19 +36,42 @@ let mouse_click_pos = [];
 let last_mouse_pos = [];
 let mouse_pos = [];
 let pressed = { "up": false, "down": false, "left": false, "right": false }
+let stop_stream = false;
 document.getElementById("image").setAttribute("draggable", false);
+
 
 const control_socket = io.connect(control_address);
 const video_socket = io.connect(video_address);
 
+control_socket.on("turn_off_lazer", () => {
+    opt.lazer_on = false;
+});
+
 video_socket.on("image", (image) => {
-    const imageElem = document.getElementById("image");
+    if (!stop_stream) {
+        let imageElem = document.getElementById("image");
+        imageElem.src = `data:image/jpeg;base64,${image}`;
+    }
+});
+
+video_socket.on("send_snapshot", (image) => {
+    stop_stream = true;
+    let imageElem = document.getElementById("image");
     imageElem.src = `data:image/jpeg;base64,${image}`;
+
+    if (opt.download_snapshot) {
+        console.log("here");
+        // Download base64 image
+        var a = document.createElement("a");  // Create <a>
+        a.href = "data:image/png;base64," + image;  // Image Base64 Goes here
+        a.download = new Date().today() + "_" + new Date().timeNow() + ".png";
+        a.click();  // Downloaded file
+    }
 });
 document.getElementById("image").ondragstart = function() { return false; };  // Disable image drag
 
 
-const Options = function () {
+const Options = function() {
     // Retrieve options from server
     this.options = httpGet(control_address + "/options");
 
@@ -63,6 +96,9 @@ const Options = function () {
     this.resolution = "[" + this.options["resolution"][0] + ", " + this.options["resolution"][1] + "]";
     this.video_encoding = this.options["video_encoding"];
 
+    this.download_snapshot = true;
+    this.lazer_on = false;
+
     this.control_mode = this.options["control_mode"];
 
     this.mirror_video_axis_vert = Boolean(this.options["mirror_video_axis"][0]);
@@ -71,6 +107,7 @@ const Options = function () {
     this.mirror_control_axis_hor = Boolean(this.options["mirror_control_axis"][1]);
     this.axis_movements_vert = Boolean(this.options["axis_movements"][0]);
     this.axis_movements_hor = Boolean(this.options["axis_movements"][1]);
+
 
     this.restart = function() {
         HTTP.open("post", control_address + "/restart");
@@ -88,9 +125,12 @@ const Options = function () {
             gui.__controllers[i].updateDisplay();
         }
 
-        console.log(this.servo_pins_vert, this.servo_pins_hor);
         HTTP.open("POST", control_address + "/change-servo_pins-[" + Math.round(this.servo_pins_vert) + ", " + Math.round(this.servo_pins_hor) + "]");
         HTTP.send();
+    }
+
+    this.snapshot = function() {
+        video_socket.emit("snapshot");
     }
 };
 
@@ -175,6 +215,18 @@ gCameraIndex.onChange(function(value) {
     video_socket.emit("options", "camera_index", Math.round(value));
 });
 
+
+let fFunctions = gui.addFolder("Additional functions");
+fFunctions.add(opt, "snapshot").name("Take HQ snapshot");
+fFunctions.add(opt, "download_snapshot").name("Download snapshot");
+let gLazerOn = fFunctions.add(opt, "lazer_on").name("Turn on/off lazer").listen();
+
+gLazerOn.onChange(function(value) {
+    control_socket.emit("set_lazer", value);
+});
+fFunctions.open()
+
+
 let gResolutionWidth = fVideo.add(opt, "resolution", ["[320, 240]", "[480, 360]", "[640, 360]", "[640, 480]", "[1056, 594]", "[1280, 720]", "[1920, 1080]"]).name("Video resolution");
 gResolutionWidth.onChange(function(value) {
     video_socket.emit("options", "resolution", value);
@@ -243,25 +295,30 @@ control_socket.on("update_pos", (pos) => {
 document.addEventListener("keydown", onDocumentKeyDown, false);
 function onDocumentKeyDown(event) {
     if (event.repeat) { return }
-    if (event.which === 37) {  // Left
-        if (!pressed["left"]) {
-            control_socket.emit("left", true);
-            pressed["left"] = true;
-        }
-    } else if (event.which === 39) {  // Right
-        if (!pressed["right"]) {
-            control_socket.emit("right", true);
-            pressed["right"] = true;
-        }
-    } else if (event.which === 38) {  // Up
-        if (!pressed["up"]) {
-            control_socket.emit("up", true);
-            pressed["up"] = true;
-        }
-    } else if (event.which === 40) {  // Down
-        if (!pressed["down"]) {
-            control_socket.emit("down", true);
-            pressed["down"] = true;
+    if (event.which === 27) {  // Esc
+        stop_stream = false;
+
+    } else if (!stop_stream) {
+        if (event.which === 37) {  // Left
+            if (!pressed["left"]) {
+                control_socket.emit("left", true);
+                pressed["left"] = true;
+            }
+        } else if (event.which === 39) {  // Right
+            if (!pressed["right"]) {
+                control_socket.emit("right", true);
+                pressed["right"] = true;
+            }
+        } else if (event.which === 38) {  // Up
+            if (!pressed["up"]) {
+                control_socket.emit("up", true);
+                pressed["up"] = true;
+            }
+        } else if (event.which === 40) {  // Down
+            if (!pressed["down"]) {
+                control_socket.emit("down", true);
+                pressed["down"] = true;
+            }
         }
     }
 }
@@ -270,6 +327,7 @@ function onDocumentKeyDown(event) {
 // Key up events
 document.addEventListener("keyup", onDocumentKeyUp, false);
 function onDocumentKeyUp(event) {
+    if (stop_stream) return;
     if (event.which === 37) {  // Left
         control_socket.emit("left", false);
         pressed["left"] = false;
@@ -286,6 +344,7 @@ function onDocumentKeyUp(event) {
 }
 
 $("body").mousemove(function (e) {
+    if (stop_stream) return;
     mouse_pos = [e.pageX, e.pageY];
 
     if (mouse_down) {
@@ -309,6 +368,7 @@ $("body").mousemove(function (e) {
 })
 
 $('body').on('mousedown', function(event) {
+    if (stop_stream) return;
     let option_elem = document.getElementsByClassName("dg main a")[0];
     if (option_elem.contains(event.target)) {
         return;  // This click is inside of options menu
@@ -333,6 +393,7 @@ $('body').on('mousedown', function(event) {
 
 
 $('body').on('mouseup', function(event) {
+    if (stop_stream) return;
     if (mouse_down) {
         // Send stop request
         control_socket.emit("stop");

@@ -2,13 +2,14 @@ import cv2
 import argparse
 import base64
 import json
+import time
 
 import socketio
 from aiohttp import web
 import aiohttp_cors
 import eventlet
 
-from config import camera_index, resolution, video_encoding, mirror_video_axis, cors_allowed_origins
+from config import camera_index, resolution, hq_resolution, video_encoding, mirror_video_axis, cors_allowed_origins
 
 
 ap = argparse.ArgumentParser()
@@ -22,6 +23,8 @@ MAX_BUFFER_SIZE = 50 * 1000 * 1000  # 50 MB
 sio = socketio.AsyncServer(async_mode='aiohttp', cors_allowed_origins=cors_allowed_origins,
                                    maxHttpBufferSize=MAX_BUFFER_SIZE, async_handlers=True)
 app = web.Application()
+
+last_snapshot_time = 0
 
 # Static files server
 async def index(request):
@@ -69,6 +72,9 @@ def init_camera(camera_index, resolution):
     return capture
 
 
+def curr_time():
+    return int(time.time() * 1000)
+
 system_cameras = list_ports()[1]
 
 capture = init_camera(camera_index, resolution)
@@ -79,8 +85,31 @@ async def handle_get_cameras(request):
     return web.json_response(system_cameras)
 
 
+@sio.on("snapshot")
+async def take_snapshot(sid):
+    last_snapshot_time = curr_time()
+    capture.set(cv2.CAP_PROP_FRAME_WIDTH, hq_resolution[0])
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, hq_resolution[1])
+
+    grabbed, frame = capture.read()
+    if not grabbed:
+        return
+
+    for axis in [0, 1]:
+        if mirror_video_axis[axis]:
+            frame = cv2.flip(frame, axis)
+
+    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 100]
+    _, image = cv2.imencode('.jpg', frame, encode_param)
+    converted = base64.b64encode(image)
+    await sio.emit('send_snapshot', str(converted)[2:-1])
+
+    capture.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0])
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
+
+
 @sio.on("options")
-async def handle_options_set(request, option, value):
+async def handle_options_set(sid, option, value):
     global capture, camera_index, encode_param
     if option == "resolution":
         value = json.loads(value)
@@ -140,9 +169,13 @@ sio.attach(app)
 
 async def send_images():
     while True:
+        if (curr_time() - last_snapshot_time) < 4000:
+            print("waiting")
+            continue  # Snapshot in progress
+
         grabbed, frame = capture.read()
         if not grabbed:
-            break
+            continue
 
         for axis in [0, 1]:
             if mirror_video_axis[axis]:
@@ -164,4 +197,5 @@ if __name__ == "__main__":
     eventlet.monkey_patch()
     web.run_app(init_app(), host=args["ip"], port=args["port"])
     capture.release()
+
 
