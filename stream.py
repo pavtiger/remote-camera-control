@@ -111,7 +111,7 @@ async def take_snapshot(sid):
 @sio.on("options")
 async def handle_options_set(sid, option, value):
     global capture, camera_index, encode_param
-    if option == "resolution":
+    if option == "resolution" or option == "hq_resolution":
         value = json.loads(value)
 
     # Save updated option to config.py
@@ -142,6 +142,10 @@ async def handle_options_set(sid, option, value):
         resolution[0] = value[0]
         resolution[1] = value[1]
         capture = init_camera(camera_index, resolution)
+
+    elif option == "hq_resolution":
+        hq_resolution[0] = value[0]
+        hq_resolution[1] = value[1]
 
     elif option == "video_encoding":
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), value]

@@ -65,7 +65,9 @@ video_socket.on("send_snapshot", (image) => {
         var a = document.createElement("a");  // Create <a>
         a.href = "data:image/png;base64," + image;  // Image Base64 Goes here
         a.download = new Date().today() + "_" + new Date().timeNow() + ".png";
+        document.body.appendChild(a);
         a.click();  // Downloaded file
+        document.body.removeChild(a);
     }
 });
 document.getElementById("image").ondragstart = function() { return false; };  // Disable image drag
@@ -94,6 +96,7 @@ const Options = function() {
 
     this.camera_index = this.options["camera_index"];
     this.resolution = "[" + this.options["resolution"][0] + ", " + this.options["resolution"][1] + "]";
+    this.hq_resolution = "[" + this.options["hq_resolution"][0] + ", " + this.options["hq_resolution"][1] + "]";
     this.video_encoding = this.options["video_encoding"];
 
     this.download_snapshot = true;
@@ -227,9 +230,13 @@ gLazerOn.onChange(function(value) {
 fFunctions.open()
 
 
-let gResolutionWidth = fVideo.add(opt, "resolution", ["[320, 240]", "[480, 360]", "[640, 360]", "[640, 480]", "[1056, 594]", "[1280, 720]", "[1920, 1080]"]).name("Video resolution");
-gResolutionWidth.onChange(function(value) {
+let gResolution = fVideo.add(opt, "resolution", ["[320, 240]", "[480, 360]", "[640, 360]", "[640, 480]", "[1056, 594]", "[1280, 720]", "[1920, 1080]"]).name("Video resolution");
+gResolution.onChange(function(value) {
     video_socket.emit("options", "resolution", value);
+});
+let gHQResolution = fVideo.add(opt, "hq_resolution", ["[320, 240]", "[480, 360]", "[640, 360]", "[640, 480]", "[1056, 594]", "[1280, 720]", "[1920, 1080]"]).name("Snapshot resolution");
+gHQResolution.onChange(function(value) {
+    video_socket.emit("options", "hq_resolution", value);
 });
 
 let gVideoEncoding = fVideo.add(opt, "video_encoding", 0, 100).name("Video encoding");
