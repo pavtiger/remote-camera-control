@@ -39,6 +39,7 @@ let pressed = { "up": false, "down": false, "left": false, "right": false }
 let stop_stream = false;
 document.getElementById("image").setAttribute("draggable", false);
 
+
 const control_socket = io.connect(control_address);
 const video_socket = io.connect(video_address);
 
@@ -54,17 +55,19 @@ video_socket.on("send_snapshot", (image) => {
     let imageElem = document.getElementById("image");
     imageElem.src = `data:image/jpeg;base64,${image}`;
 
-    // Download base64 image
-    var a = document.createElement("a");  // Create <a>
-    a.href = "data:image/png;base64," + image;  // Image Base64 Goes here
-    a.download = new Date().today() + "_" + new Date().timeNow() + ".png";
-    console.log(new Date().today() + "_" + new Date().timeNow() + ".png");
-    a.click();  // Downloaded file
+    if (opt.download_snapshot) {
+        console.log("here");
+        // Download base64 image
+        var a = document.createElement("a");  // Create <a>
+        a.href = "data:image/png;base64," + image;  // Image Base64 Goes here
+        a.download = new Date().today() + "_" + new Date().timeNow() + ".png";
+        a.click();  // Downloaded file
+    }
 });
 document.getElementById("image").ondragstart = function() { return false; };  // Disable image drag
 
 
-const Options = function () {
+const Options = function() {
     // Retrieve options from server
     this.options = httpGet(control_address + "/options");
 
@@ -88,6 +91,8 @@ const Options = function () {
     this.camera_index = this.options["camera_index"];
     this.resolution = "[" + this.options["resolution"][0] + ", " + this.options["resolution"][1] + "]";
     this.video_encoding = this.options["video_encoding"];
+
+    this.download_snapshot = true;
 
     this.control_mode = this.options["control_mode"];
 
@@ -207,6 +212,7 @@ gCameraIndex.onChange(function(value) {
 
 let fFunctions = gui.addFolder("Additional functions");
 fFunctions.add(opt, "snapshot").name("Take HQ snapshot");
+fFunctions.add(opt, "download_snapshot").name("Download snapshot");
 fFunctions.open()
 
 
@@ -280,25 +286,28 @@ function onDocumentKeyDown(event) {
     if (event.repeat) { return }
     if (event.which === 27) {  // Esc
         stop_stream = false;
-    } else if (event.which === 37) {  // Left
-        if (!pressed["left"]) {
-            control_socket.emit("left", true);
-            pressed["left"] = true;
-        }
-    } else if (event.which === 39) {  // Right
-        if (!pressed["right"]) {
-            control_socket.emit("right", true);
-            pressed["right"] = true;
-        }
-    } else if (event.which === 38) {  // Up
-        if (!pressed["up"]) {
-            control_socket.emit("up", true);
-            pressed["up"] = true;
-        }
-    } else if (event.which === 40) {  // Down
-        if (!pressed["down"]) {
-            control_socket.emit("down", true);
-            pressed["down"] = true;
+
+    } else if (!stop_stream) {
+        if (event.which === 37) {  // Left
+            if (!pressed["left"]) {
+                control_socket.emit("left", true);
+                pressed["left"] = true;
+            }
+        } else if (event.which === 39) {  // Right
+            if (!pressed["right"]) {
+                control_socket.emit("right", true);
+                pressed["right"] = true;
+            }
+        } else if (event.which === 38) {  // Up
+            if (!pressed["up"]) {
+                control_socket.emit("up", true);
+                pressed["up"] = true;
+            }
+        } else if (event.which === 40) {  // Down
+            if (!pressed["down"]) {
+                control_socket.emit("down", true);
+                pressed["down"] = true;
+            }
         }
     }
 }
@@ -307,6 +316,7 @@ function onDocumentKeyDown(event) {
 // Key up events
 document.addEventListener("keyup", onDocumentKeyUp, false);
 function onDocumentKeyUp(event) {
+    if (stop_stream) return;
     if (event.which === 37) {  // Left
         control_socket.emit("left", false);
         pressed["left"] = false;
@@ -323,6 +333,7 @@ function onDocumentKeyUp(event) {
 }
 
 $("body").mousemove(function (e) {
+    if (stop_stream) return;
     mouse_pos = [e.pageX, e.pageY];
 
     if (mouse_down) {
@@ -346,6 +357,7 @@ $("body").mousemove(function (e) {
 })
 
 $('body').on('mousedown', function(event) {
+    if (stop_stream) return;
     let option_elem = document.getElementsByClassName("dg main a")[0];
     if (option_elem.contains(event.target)) {
         return;  // This click is inside of options menu
@@ -370,6 +382,7 @@ $('body').on('mousedown', function(event) {
 
 
 $('body').on('mouseup', function(event) {
+    if (stop_stream) return;
     if (mouse_down) {
         // Send stop request
         control_socket.emit("stop");

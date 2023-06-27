@@ -176,6 +176,11 @@ async def set_pos(sid, x, y):
     pos[1] = y
 
 
+@sio.on("set_lazer")
+async def set_lazer(sid, state):
+   pass
+
+
 async def handle_options_get(request):  # Gives options about both streaming server and control server (from config.py)
     dictionary = {}
     with open("config.py", 'r') as file:
